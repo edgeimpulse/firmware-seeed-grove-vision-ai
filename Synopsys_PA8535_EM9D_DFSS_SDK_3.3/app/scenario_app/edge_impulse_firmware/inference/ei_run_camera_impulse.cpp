@@ -40,9 +40,6 @@ static bool debug_mode = false;
 static bool continuous_mode = false;
 static uint8_t *snapshot_buf = nullptr;
 static uint32_t snapshot_buf_size;
-static ei_device_snapshot_resolutions_t snapshot_resolution;
-static bool resize_required = false;
-static bool crop_required = false;
 static uint32_t inference_delay;
 
 static int ei_camera_get_data(size_t offset, size_t length, float *out_ptr)
@@ -88,6 +85,8 @@ void ei_run_impulse(void)
     }
 
     int res;
+    uint32_t jpeg_image_addr;
+    uint32_t jpeg_size;
     EiCameraOV2640 *cam = static_cast<EiCameraOV2640*>(EiCameraOV2640::get_camera());
  
     ei_printf("Taking photo...\n");
@@ -95,16 +94,6 @@ void ei_run_impulse(void)
     if(cam->ei_camera_capture_rgb888_packed_big_endian(snapshot_buf, snapshot_buf_size) == false) {
         ei_printf("ERR: Failed to take a snapshot!\n");
         return;
-    }
-
-    if (resize_required || crop_required) {
-        ei::image::processing::crop_and_interpolate_rgb888(
-            snapshot_buf,
-            snapshot_resolution.width,
-            snapshot_resolution.height,
-            snapshot_buf,
-            EI_CLASSIFIER_INPUT_WIDTH,
-            EI_CLASSIFIER_INPUT_HEIGHT); // bytes per pixel
     }
 
     ei::signal_t signal;
@@ -115,11 +104,9 @@ void ei_run_impulse(void)
     if (debug_mode) {
         ei_printf("Begin output\n");
         ei_printf("Framebuffer: ");
-        int ret = encode_rgb888_signal_as_jpg_and_output_base64(&signal, EI_CLASSIFIER_INPUT_WIDTH, EI_CLASSIFIER_INPUT_HEIGHT);
+        cam->get_last_jpeg_frame(&jpeg_image_addr, &jpeg_size);
+        base64_encode((char*)jpeg_image_addr, jpeg_size, ei_putchar);
         ei_printf("\r\n");
-        if(ret != 0) {
-            ei_printf("ERR: Failed to encode frame as JPEG (%d)\n", ret);
-        }
     }
 
     // run the impulse: DSP, neural network and the Anomaly algorithm
@@ -180,36 +167,13 @@ void ei_start_impulse(bool continuous, bool debug, bool use_max_uart_speed)
         return;
     }
 
-    snapshot_resolution = cam->search_resolution(EI_CLASSIFIER_INPUT_WIDTH, EI_CLASSIFIER_INPUT_HEIGHT);
-    if(cam->set_resolution(snapshot_resolution) == false) {
-        ei_printf("ERR: Failed to set snapshot resolution (%ux%u)!\n", EI_CLASSIFIER_INPUT_WIDTH, EI_CLASSIFIER_INPUT_HEIGHT);
+    if(cam->init(EI_CLASSIFIER_INPUT_WIDTH, EI_CLASSIFIER_INPUT_HEIGHT) == false) {
         return;
     }
 
-    if(snapshot_resolution.width > EI_CLASSIFIER_INPUT_WIDTH || snapshot_resolution.height > EI_CLASSIFIER_INPUT_HEIGHT) {
-        crop_required = true;
-        resize_required = false;
-    }
-    else if(snapshot_resolution.width < EI_CLASSIFIER_INPUT_WIDTH || snapshot_resolution.height < EI_CLASSIFIER_INPUT_HEIGHT) {
-        crop_required = false;
-        resize_required = true;
-    }
-    else {
-        crop_required = false;
-        resize_required = false;
-    }
+    snapshot_buf_size = EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 3;
 
-    snapshot_buf_size = snapshot_resolution.width * snapshot_resolution.height * 3;
- 
-    // if we have to resize, then allocate bigger buffer
-    // (resize means camera can't get big enough spanshot)
-    if(resize_required) {
-        snapshot_buf = (uint8_t*)ei_malloc(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 3);
-    }
-    else {
-        snapshot_buf = (uint8_t*)ei_malloc(snapshot_buf_size);
-    }
-
+    snapshot_buf = (uint8_t*)ei_malloc(snapshot_buf_size);
     // check if allocation was succesful
     if(snapshot_buf == nullptr) {
         ei_printf("ERR: Failed to allocate snapshot buffer!\n");

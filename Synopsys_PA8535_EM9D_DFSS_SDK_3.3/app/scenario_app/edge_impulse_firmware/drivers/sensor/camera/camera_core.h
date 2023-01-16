@@ -8,6 +8,7 @@
 #include "hx_drv_iomux.h"
 #include "hx_drv_iic_m.h"
 #include "datapath.h"
+#include "sensor_core.h"
 
 #include <stdio.h>
 
@@ -25,7 +26,7 @@ typedef struct {
     int8_t (*set_output_size)(uint16_t width, uint16_t height);
 } Camera_Hal_Struct;
 
-ERROR_T camera_init();
+ERROR_T camera_init(Camera_Cfg *camera_cfg);
 ERROR_T camera_deinit();
 
 #endif

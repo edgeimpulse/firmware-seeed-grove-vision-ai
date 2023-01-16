@@ -27,17 +27,18 @@ private:
     bool stream_active;
     uint32_t width;
     uint32_t height;
-    uint32_t output_width;
-    uint32_t output_height;
-    bool stream_do_resize;
     uint8_t *stream_buffer;
     uint32_t stream_buffer_size;
     bool camera_present;
+    uint32_t jpeg_image_addr;
+    uint32_t jpeg_size;
 
 public:
     EiCameraOV2640();
-    bool init(uint16_t width, uint16_t height);
+    bool init(uint16_t width, uint16_t height) override;
+    bool deinit(void) override;
     bool ei_camera_capture_rgb888_packed_big_endian(uint8_t *image, uint32_t image_size);
+    bool get_last_jpeg_frame(uint32_t *jpeg_image_addr, uint32_t *jpeg_size);
     bool set_resolution(const ei_device_snapshot_resolutions_t res);
     ei_device_snapshot_resolutions_t get_min_resolution(void);
     bool is_camera_present(void);

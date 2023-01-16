@@ -24,17 +24,20 @@
 extern "C" {
 #include "datapath.h"
 #include "sensor_core.h"
+#include "camera_core.h"
+#include "error_code.h"
+#include "hx_drv_pmu.h"
 };
-
-// 4:3 aspcet ratio
-#define CAMERA_WIDTH 320
-#define CAMERA_HEIGHT 240
 
 #define CLIP(value) (unsigned char)(((value) > 0xFF) ? 0xff : (((value) < 0) ? 0 : (value)))
 
 ei_device_snapshot_resolutions_t EiCameraOV2640::resolutions[] = {
+        { .width = 64, .height = 64 },
+        { .width = 96, .height = 96 },
         { .width = 128, .height = 96 },
+        { .width = 128, .height = 128 },
         { .width = 160, .height = 120 },
+        { .width = 160, .height = 160 },
     };
 
 static void yuv422p2rgb(uint8_t *pdst, const uint8_t *psrc, int h, int w, int c, int target_h, int target_w)
@@ -94,6 +97,31 @@ EiCameraOV2640::EiCameraOV2640()
 
 bool EiCameraOV2640::init(uint16_t width, uint16_t height)
 {
+    ERROR_T ret = ERROR_NONE;
+    Sensor_Cfg_t sensor_cfg = {
+        .sensor_type = SENSOR_CAMERA,
+        .data = {
+            .camera_cfg = {
+                .width = width,
+                .height = height,
+            }
+        }
+    };
+
+    ret = datapath_init(sensor_cfg.data.camera_cfg.width,
+                        sensor_cfg.data.camera_cfg.height);
+    if (ret != ERROR_NONE) {
+        ei_printf("ERROR: Failed to initialize datapath (%d)\n", ret);
+        return false;
+    }
+
+    ret = camera_init(&sensor_cfg.data.camera_cfg);
+    if (ret != ERROR_NONE) {
+        hx_drv_pmu_set_ctrl(PMU_SEN_INIT, 0);
+        ei_printf("ERROR: Failed to initialize camera (%d)\n", ret);
+        return false;
+    }
+
     // find a proper resolution that is same or higher than the requested one
     ei_device_snapshot_resolutions_t sensor_res = this->search_resolution(width, height);
 
@@ -105,10 +133,15 @@ bool EiCameraOV2640::init(uint16_t width, uint16_t height)
     return true;
 }
 
+bool EiCameraOV2640::deinit(void)
+{
+    camera_deinit();
+
+    return true;
+}
+
 bool EiCameraOV2640::set_resolution(const ei_device_snapshot_resolutions_t res)
 {
-    // check if requested res is lower than the camera native one (currently fixed to 320x240)
-    //TODO: is it possible to get here not correct resolution?
     width = res.width;
     height = res.height;
 
@@ -140,7 +173,16 @@ bool EiCameraOV2640::ei_camera_capture_rgb888_packed_big_endian(uint8_t *image, 
 
     while (!datapath_get_img_state());
     raw_img_addr = datapath_get_yuv_img_addr();
-    yuv422p2rgb(image, (uint8_t*)raw_img_addr, CAMERA_HEIGHT, CAMERA_WIDTH, 3, this->height, this->width);
+    datapath_get_jpeg_img(&this->jpeg_image_addr, &this->jpeg_size);
+    yuv422p2rgb(image, (uint8_t*)raw_img_addr, this->height, this->width, 3, this->height, this->width);
+
+    return true;
+}
+
+bool EiCameraOV2640::get_last_jpeg_frame(uint32_t *jpeg_image_addr, uint32_t *jpeg_size)
+{
+    *jpeg_image_addr = this->jpeg_image_addr;
+    *jpeg_size = this->jpeg_size;
 
     return true;
 }
@@ -154,23 +196,16 @@ void EiCameraOV2640::get_resolutions(ei_device_snapshot_resolutions_t **res, uin
 bool EiCameraOV2640::start_stream(uint32_t width, uint32_t height)
 {
     // try to set required resolution, returned is what has been set
-    ei_device_snapshot_resolutions_t sensor_res = this->search_resolution(width, height);
+    ei_device_snapshot_resolutions_t sensor_res = {width, height};
+    this->init(width, height);
 
     if(set_resolution(sensor_res) == 0) {
         ei_printf("ERR: Failed to set camera resolution!\n");
         return false;
     }
 
-    // store required output res
-    this->output_width = width;
-    this->output_height = height;
 
-    // check if we have to do resize/crop
-    this->stream_do_resize = this->width != width || this->height != height;
-
-    // get bigger image resolution (snapshot or output) to allocate big enough buffer
-    //TODO: get color depth (here 3 bytes) from camera props
-    this->stream_buffer_size = std::max(this->width * this->height, this->output_width * this->output_height) * 3;
+    this->stream_buffer_size = this->width * this->height * 3;
     this->stream_buffer = (uint8_t*)ei_malloc(stream_buffer_size);
     if(this->stream_buffer == nullptr) {
         ei_printf("ERR: Failed to allocate stream buffer!\n");
@@ -189,20 +224,9 @@ bool EiCameraOV2640::run_stream(void)
 
     ei_camera_capture_rgb888_packed_big_endian(this->stream_buffer, this->stream_buffer_size);
 
-    if (this->stream_do_resize) {
-        // interpolate in place
-        ei::image::processing::crop_and_interpolate_rgb888(
-            this->stream_buffer,
-            this->width,
-            this->height,
-            this->stream_buffer,
-            this->output_width,
-            this->output_height);
-    }
-
     //TODO: use camera color_depth size instead of fixed 3
     base64_encode((char*)this->stream_buffer,
-        this->output_height * this->output_width * 3,
+        this->width * this->height * 3,
         ei_putchar);
     ei_printf("\r\n");
 
@@ -225,6 +249,8 @@ bool EiCameraOV2640::stop_stream(void)
     ei_printf("Snapshot streaming stopped by user\n");
     ei_printf("OK\n");
     ei_free(this->stream_buffer);
+
+    this->deinit();
 
     stream_active = false;
 

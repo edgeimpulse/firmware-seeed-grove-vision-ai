@@ -42,38 +42,7 @@ extern "C" {
 #include "ei_at_handlers.h"
 #include "ei_run_impulse.h"
 
-// see ov2640.c setting is register 0x12 for the camera output resolution
-#define CAMERA_WIDTH 320
-#define CAMERA_HEIGHT 240
-
 static DEV_UART *console_uart;
-
-ERROR_T hardware_init()
-{
-    ERROR_T ret = ERROR_NONE;
-    Sensor_Cfg_t sensor_cfg_t = {
-        .sensor_type = SENSOR_CAMERA,
-        .data = {
-            .camera_cfg = {
-                .width = CAMERA_WIDTH,
-                .height = CAMERA_HEIGHT,
-            }
-        }
-    };
-
-    ret = datapath_init(sensor_cfg_t.data.camera_cfg.width,
-                        sensor_cfg_t.data.camera_cfg.height);
-    if (ret != ERROR_NONE) {
-        ei_printf("ERROR: Failed to initialize datapath\n");
-    }
-
-    ret = sensor_init(&sensor_cfg_t);
-    if (ret != ERROR_NONE) {
-        ei_printf("ERROR: Failed to initialize sensor %d\n", ret);
-    }
-
-    return ERROR_NONE;
-}
 
 extern "C" int edge_impulse_firmware(void)
 {
@@ -86,7 +55,6 @@ extern "C" int edge_impulse_firmware(void)
     hx_drv_timer_init();
     debugger_init();
     external_flash_xip_enable();
-    hardware_init();
     console_uart = hx_drv_uart_get_dev((USE_SS_UART_E)CONSOLE_UART_ID);
 
     dev->set_state(eiStateFinished);

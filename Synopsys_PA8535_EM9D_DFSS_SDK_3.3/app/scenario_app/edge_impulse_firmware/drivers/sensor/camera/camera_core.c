@@ -5,7 +5,6 @@
 #include "hx_drv_inp.h"
 #include "error_code.h"
 #include "logger.h"
-#include "sensor_core.h"
 
 extern Camera_Hal_Struct ov2640_driver;
 extern Camera_Hal_Struct hm0360_driver;

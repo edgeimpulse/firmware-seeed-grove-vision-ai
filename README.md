@@ -28,6 +28,10 @@ If you are using the Grove Vision AI module with Edge Impulse for the first time
 
     `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_firmware/ei-model`
 
+### Reporting issues
+
+This repository is a snapshot of the Edge Impulse internal code base, therefore PRs won't be merged. If you find any bugs or want to contribute use our [Developer Forum](https://forum.edgeimpulse.com/) to submit them.
+
 ## How to build the firmware?
 
 You can build firmware using the provided `Dockerfile` (the most straightforward solution).
