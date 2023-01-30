@@ -87,7 +87,7 @@ extern "C"
 typedef enum
 {
     ALGO_OBJECT_DETECTION = 0,
-    ALGO_OBJECT_COUNT = 1,
+    ALGO_OBJECT_COUNTING = 1,
     ALGO_MAX,
 } ALGO_INDEX_T;
 
@@ -129,30 +129,11 @@ typedef struct
 I2CServer *i2c;
 algoConfig_t _algoConfig;
 
-typedef struct
-{
-    uint16_t x;
-    uint16_t y;
-    uint16_t w;
-    uint16_t h;
-    uint8_t confidence;
-    uint8_t target;
-} object_detection_t;
-
-typedef struct
-{
-    uint8_t target;
-    uint8_t count;
-} object_count_t;
-
 #define CMD_HEADER_LENGTH 0x02
 
 /* Private variable -------------------------------------------------------*/
 static uint8_t _i2c_read_buf[I2CCOMM_MAX_WBUF_SIZE] = {0};
 static uint8_t _i2c_write_buf[I2CCOMM_MAX_RBUF_SIZE] = {0};
-
-static std::forward_list<object_detection_t> _l_obj_det;
-static std::forward_list<object_count_t> _l_obj_cnt;
 
 /**
  * @brief  i2c event irq handle
@@ -378,31 +359,21 @@ I2CState_t ei_i2c_read_ret(const uint8_t *read_buf, uint8_t *write_buf, uint8_t 
 
     if (_algoConfig.algo == ALGO_OBJECT_DETECTION)
     {
-        auto front = _l_obj_det.begin();
-        std::advance(front, index);
-
-        *len = sizeof(object_detection_t);
-
         object_detection_t obj;
-        obj.x = front->x;
-        obj.y = front->y;
-        obj.w = front->w;
-        obj.h = front->h;
-        obj.confidence = front->confidence;
-        obj.target = front->target;
-        //ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
+        *len = sizeof(object_detection_t);
+        ei_get_det_result_data(index, &obj);
+
+        ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
+
         memcpy(write_buf, &obj, *len);
     }
-    else
+    else if (_algoConfig.algo == ALGO_OBJECT_COUNTING)
     {
-        auto front = _l_obj_cnt.begin();
-        std::advance(front, index);
 
-        *len = sizeof(object_count_t);
-        object_count_t obj;
-        obj.count = front->count;
-        obj.target = front->target;
-        //ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
+        object_counting_t obj;
+        ei_get_cnt_result_data(index, &obj);
+        *len = sizeof(object_counting_t);
+        ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
         memcpy(write_buf, &obj, *len);
     }
 
@@ -448,39 +419,27 @@ void ei_i2c_algo_task()
     if (_algoConfig.invoke == CMD_ALGO_INVOKE_START)
     {
         // TODO : invoke algo
-        //ei_printf("invoke algo\n");
+        // ei_printf("invoke algo\n");
         _algoConfig.ret_len = 0;
 
-        _l_obj_det.clear();
-        _l_obj_cnt.clear();
+        ei_start_impulse(false, false, false, _algoConfig.confidence / 100.0f);
 
-        // ei_run_impulse();
-        //for()
+        ei_run_impulse();
 
-        /* fake result */
-        board_delay_ms(200);
+        ei_stop_impulse();
 
-        object_count_t obj_cnt;
-        obj_cnt.target = 0;
-        obj_cnt.count = 1;
-
-        _l_obj_cnt.emplace_front(obj_cnt);
-
-        object_detection_t obj_det;
-        obj_det.target = 0;
-        obj_det.x = 50;
-        obj_det.y = 50;
-        obj_det.w = 50;
-        obj_det.h = 50;
-        obj_det.confidence = 50;
-
-        _l_obj_det.emplace_front(obj_det);
-
-        _algoConfig.ret_len = std::distance(_l_obj_cnt.begin(), _l_obj_cnt.end());
+        if (_algoConfig.algo == ALGO_OBJECT_DETECTION)
+        {
+            _algoConfig.ret_len = ei_get_det_result_len();
+        }
+        else if (_algoConfig.algo == ALGO_OBJECT_COUNTING)
+        {
+            _algoConfig.ret_len = ei_get_cnt_result_len();
+        }
 
         _algoConfig.invoke = CMD_ALGO_INVOKE_STOP;
         i2c->set_state(I2CState_t::I2C_IDLE);
-        //ei_printf("invoke algo done\n");
+        // ei_printf("invoke algo done\n");
     }
 }
 

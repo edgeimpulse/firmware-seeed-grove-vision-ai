@@ -25,10 +25,32 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-void ei_start_impulse(bool continuous, bool debug, bool use_max_uart_speed);
-void ei_run_impulse(void);
+typedef struct
+{
+    uint16_t x;
+    uint16_t y;
+    uint16_t w;
+    uint16_t h;
+    uint8_t confidence;
+    uint8_t target;
+} object_detection_t;
+
+typedef struct
+{
+    uint8_t target;
+    uint8_t count;
+} object_counting_t;
+
+void ei_start_impulse(bool continuous, bool debug, bool use_max_uart_speed, float confidence);
+void ei_run_impulse();
 void ei_stop_impulse(void);
 bool is_inference_running(void);
+
+uint16_t ei_get_det_result_len();
+void ei_get_det_result_data(uint16_t index, void *obj);
+
+uint16_t ei_get_cnt_result_len();
+void ei_get_cnt_result_data(uint16_t index, void *obj);
 
 #ifdef __cplusplus
 }

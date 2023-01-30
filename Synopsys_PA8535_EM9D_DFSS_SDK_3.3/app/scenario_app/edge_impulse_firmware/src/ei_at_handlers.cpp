@@ -171,7 +171,7 @@ bool at_unlink_file(const char **argv, const int argc)
 
 bool at_run_impulse(void)
 {
-    ei_start_impulse(false, false, false);
+    ei_start_impulse(false, false, false, 0);
 
     return false;
 }
@@ -183,14 +183,14 @@ bool at_run_impulse_debug(const char **argv, const int argc)
         use_max_uart_speed = true;
     }
 
-    ei_start_impulse(false, true, use_max_uart_speed);
+    ei_start_impulse(false, true, use_max_uart_speed, 0);
 
     return false;
 }
 
 bool at_run_impulse_cont(void)
 {
-    ei_start_impulse(true, false, false);
+    ei_start_impulse(true, false, false, 0);
 
     return false;
 }
