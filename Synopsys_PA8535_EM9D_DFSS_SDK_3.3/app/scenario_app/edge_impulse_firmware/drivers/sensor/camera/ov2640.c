@@ -396,29 +396,30 @@ static int8_t ov2640_set_output_size(uint16_t width, uint16_t height)
 		return -EINVAL;
 	}
 
-	if (width <= 64 && height <= 64)
-	{
-		// CIF
-		outh = 64;
-		outw = 64;
+	// if (width <= 64 && height <= 64)
+	// {
+	// 	// CIF
+	// 	outh = 64;
+	// 	outw = 64;
 
-		LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
-		hx_drv_cis_setRegTable(sensor_ov2640_cif_setting, sizeof(sensor_ov2640_cif_setting) / sizeof(sensor_ov2640_cif_setting[0]));
-	}else if (width <= 160 && height <= 123){
-		// CIF
-		outh = 120;
-		outw = 160;
+	// 	LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
+	// 	hx_drv_cis_setRegTable(sensor_ov2640_cif_setting, sizeof(sensor_ov2640_cif_setting) / sizeof(sensor_ov2640_cif_setting[0]));
+	// }else if (width <= 160 && height <= 123){
+	// 	// CIF
+	// 	outh = 120;
+	// 	outw = 160;
 
-		LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
-		hx_drv_cis_setRegTable(sensor_ov2640_cif_setting, sizeof(sensor_ov2640_cif_setting) / sizeof(sensor_ov2640_cif_setting[0]));
-	}
-	else if (width <= 320 && height <= 240)
+	// 	LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
+	// 	hx_drv_cis_setRegTable(sensor_ov2640_cif_setting, sizeof(sensor_ov2640_cif_setting) / sizeof(sensor_ov2640_cif_setting[0]));
+	// }
+	// else
+	if (width <= 320 && height <= 240)
 	{
 		// CIF
 		outh = 240;
 		outw = 320;
 
-		LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
+		//LOGGER_INFO("CIF: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
 		hx_drv_cis_setRegTable(sensor_ov2640_cif_setting, sizeof(sensor_ov2640_cif_setting) / sizeof(sensor_ov2640_cif_setting[0]));
 	}
 	else if (width <= 640 && height <= 480)
@@ -426,7 +427,7 @@ static int8_t ov2640_set_output_size(uint16_t width, uint16_t height)
 		// SVGA
 		outh = 480;
 		outw = 640;
-		LOGGER_INFO("SVGA: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
+		//LOGGER_INFO("SVGA: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
 		hx_drv_cis_setRegTable(sensor_ov2640_svga_setting, sizeof(sensor_ov2640_svga_setting) / sizeof(sensor_ov2640_svga_setting[0]));
 		/* code */
 	}
@@ -435,7 +436,7 @@ static int8_t ov2640_set_output_size(uint16_t width, uint16_t height)
 		// UXGA
 		outh = height;
 		outw = width;
-		LOGGER_INFO("UXGA: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
+		//LOGGER_INFO("UXGA: width = %d, height = %d, outw = %d, outh = %d\n", width, height, outw, outh);
 		hx_drv_cis_setRegTable(sensor_ov2640_uxga_setting, sizeof(sensor_ov2640_uxga_setting) / sizeof(sensor_ov2640_uxga_setting[0]));
 	}
 

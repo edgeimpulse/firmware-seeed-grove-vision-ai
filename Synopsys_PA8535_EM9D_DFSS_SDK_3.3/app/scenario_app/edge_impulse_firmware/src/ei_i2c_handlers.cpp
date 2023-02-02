@@ -363,7 +363,7 @@ I2CState_t ei_i2c_read_ret(const uint8_t *read_buf, uint8_t *write_buf, uint8_t 
         *len = sizeof(object_detection_t);
         ei_get_det_result_data(index, &obj);
 
-        ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
+        //ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
 
         memcpy(write_buf, &obj, *len);
     }
@@ -373,7 +373,7 @@ I2CState_t ei_i2c_read_ret(const uint8_t *read_buf, uint8_t *write_buf, uint8_t 
         object_counting_t obj;
         ei_get_cnt_result_data(index, &obj);
         *len = sizeof(object_counting_t);
-        ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
+        //ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
         memcpy(write_buf, &obj, *len);
     }
 
