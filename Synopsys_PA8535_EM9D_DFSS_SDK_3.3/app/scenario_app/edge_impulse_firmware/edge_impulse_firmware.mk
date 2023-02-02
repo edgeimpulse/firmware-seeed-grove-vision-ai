@@ -27,6 +27,7 @@ SCENARIO_APP_SUPPORT_LIST +=	edge_impulse_firmware/configs \
 								edge_impulse_firmware/datapath \
 								edge_impulse_firmware/drivers \
 								edge_impulse_firmware/drivers/flash \
+								edge_impulse_firmware/drivers/webusb \
 								edge_impulse_firmware/drivers/sensor \
 								edge_impulse_firmware/drivers/sensor/camera \
 								edge_impulse_firmware/firmware-sdk \

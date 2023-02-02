@@ -35,6 +35,7 @@ extern "C"
 #include "powermode.h"
 #include "i2c_comm.h"
 #include "internal_flash.h"
+#include "webusb.h"
 #ifdef __cplusplus
 }
 #endif
@@ -131,9 +132,26 @@ algoConfig_t _algoConfig;
 
 #define CMD_HEADER_LENGTH 0x02
 
+/* Live preview -------------------------------------------------------*/
+
+#define PREVIEW_MAX_SIZE 1024
+
+// Object detection
+#define DETECTION_PREVIEW_MAX_SIZE 10
+#define DETECTION_PREIVEW_ELEMENT_NUM 6
+#define DETECTION_PREIVEW_ELEMENT_SIZE 4
+#define DETECTION_PREVIEW_FORMATE "{\"type\":\"preview\", \"algorithm\":%d, \"model\":%d, \"count\":%d, \"object\":{\"x\": [%s],\"y\": [%s],\"w\": [%s],\"h\": [%s],\"target\": [%s],\"confidence\": [%s]}}"
+
+// Object counting
+#define COUNTING_PREVIEW_MAX_SIZE 10
+#define COUNTING_PREIVEW_ELEMENT_NUM 2
+#define COUNTING_PREIVEW_ELEMENT_SIZE 4
+#define COUNTING_PREVIEW_FORMATE "{\"type\":\"preview\", \"algorithm\":%d, \"model\":%d,\"count\":%d, \"object\":{\"target\": [%s],\"count\": [%s]}}"
+
 /* Private variable -------------------------------------------------------*/
 static uint8_t _i2c_read_buf[I2CCOMM_MAX_WBUF_SIZE] = {0};
 static uint8_t _i2c_write_buf[I2CCOMM_MAX_RBUF_SIZE] = {0};
+static char _preview_buf[PREVIEW_MAX_SIZE] = {0};
 
 /**
  * @brief  i2c event irq handle
@@ -363,7 +381,7 @@ I2CState_t ei_i2c_read_ret(const uint8_t *read_buf, uint8_t *write_buf, uint8_t 
         *len = sizeof(object_detection_t);
         ei_get_det_result_data(index, &obj);
 
-        //ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
+        // ei_printf("x:%d y:%d w:%d h:%d confidence:%d target:%d, index:%d\n", obj.x, obj.y, obj.w, obj.h, obj.confidence, obj.target, index);
 
         memcpy(write_buf, &obj, *len);
     }
@@ -373,7 +391,7 @@ I2CState_t ei_i2c_read_ret(const uint8_t *read_buf, uint8_t *write_buf, uint8_t 
         object_counting_t obj;
         ei_get_cnt_result_data(index, &obj);
         *len = sizeof(object_counting_t);
-        //ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
+        // ei_printf("count:%d target:%d, index:%d\n", obj.count, obj.target, index);
         memcpy(write_buf, &obj, *len);
     }
 
@@ -414,6 +432,121 @@ I2CState_t ei_i2c_algo_invoke()
     return I2CState_t::I2C_BUSY;
 }
 
+size_t algo_object_cnt_get_preview(char *preview, uint16_t max_length)
+{
+    if (preview == nullptr)
+    {
+        return 0;
+    }
+
+    uint16_t index = 0;
+    // get result size
+    uint16_t size = ei_get_cnt_result_len();
+
+    if (size == 0)
+    {
+        return 0;
+    }
+
+    // get available size
+    uint16_t available_size = (max_length - sizeof(COUNTING_PREVIEW_FORMATE)) / (COUNTING_PREIVEW_ELEMENT_SIZE * COUNTING_PREIVEW_ELEMENT_NUM);
+
+    if (available_size < 1)
+    {
+        return 0;
+    }
+
+    // element
+    char element[COUNTING_PREIVEW_ELEMENT_NUM][COUNTING_PREVIEW_MAX_SIZE * COUNTING_PREIVEW_ELEMENT_SIZE] = {0};
+
+    // produce preview
+    for (int i = 0; i < size; i++)
+    {
+        object_counting_t obj;
+
+        ei_get_cnt_result_data(i, &obj);
+
+        if (index == 0)
+        {
+            snprintf(element[0], sizeof(element[0]), "%d", obj.target);
+            snprintf(element[1], sizeof(element[1]), "%d", obj.count);
+        }
+        else
+        {
+            snprintf(element[0], sizeof(element[0]), "%s,%d", element[0], obj.target);
+            snprintf(element[1], sizeof(element[1]), "%s,%d", element[1], obj.count);
+        }
+        index++;
+    }
+
+    // process preview
+    snprintf(preview, max_length, COUNTING_PREVIEW_FORMATE, _algoConfig.algo, _algoConfig.model, index, element[0], element[1]);
+
+    return strlen(preview);
+}
+
+size_t algo_object_det_get_preview(char *preview, uint16_t max_length)
+{
+    if (preview == nullptr)
+    {
+        return 0;
+    }
+
+    uint16_t index = 0;
+    // get result size
+    uint16_t size = ei_get_det_result_len();
+
+    if (size == 0)
+    {
+        return 0;
+    }
+
+    // get available size
+    uint16_t available_size = (max_length - sizeof(DETECTION_PREVIEW_FORMATE)) / (DETECTION_PREIVEW_ELEMENT_SIZE * DETECTION_PREIVEW_ELEMENT_NUM);
+
+    if (available_size < 1)
+    {
+        return 0;
+    }
+
+    // element
+    char element[DETECTION_PREIVEW_ELEMENT_NUM][DETECTION_PREVIEW_MAX_SIZE * DETECTION_PREIVEW_ELEMENT_SIZE] = {0};
+
+    // produce preview
+    for (int i = 0; i < size; i++)
+    {
+        object_detection_t obj;
+
+        ei_get_det_result_data(i, &obj);
+
+        if (index == 0)
+        {
+            snprintf(element[0], sizeof(element[0]), "%d", obj.x);
+            snprintf(element[1], sizeof(element[1]), "%d", obj.y);
+            snprintf(element[2], sizeof(element[2]), "%d", obj.w);
+            snprintf(element[3], sizeof(element[3]), "%d", obj.h);
+            snprintf(element[4], sizeof(element[4]), "%d", obj.target);
+            snprintf(element[5], sizeof(element[5]), "%d", obj.confidence);
+        }
+        else
+        {
+            snprintf(element[0], sizeof(element[0]), "%s,%d", element[0], obj.x);
+            snprintf(element[1], sizeof(element[1]), "%s,%d", element[1], obj.y);
+            snprintf(element[2], sizeof(element[2]), "%s,%d", element[2], obj.w);
+            snprintf(element[3], sizeof(element[3]), "%s,%d", element[3], obj.h);
+            snprintf(element[4], sizeof(element[4]), "%s,%d", element[4], obj.target);
+            snprintf(element[5], sizeof(element[5]), "%s,%d", element[5], obj.confidence);
+        }
+        index++;
+        index++;
+    }
+
+    // process preview
+    snprintf(preview, max_length, DETECTION_PREVIEW_FORMATE, _algoConfig.algo, _algoConfig.model, index, element[0], element[1], element[2], element[3], element[4], element[5]);
+
+    return strlen(preview);
+}
+
 void ei_i2c_algo_task()
 {
     if (_algoConfig.invoke == CMD_ALGO_INVOKE_START)
@@ -428,12 +561,30 @@ void ei_i2c_algo_task()
 
         ei_stop_impulse();
 
+        uint32_t jpeg_image_addr;
+        uint32_t jpeg_size;
+        EiCameraOV2640 *cam = static_cast<EiCameraOV2640 *>(EiCameraOV2640::get_camera());
+
+        // send jpeg image trough webusb
+        cam->get_last_jpeg_frame(&jpeg_image_addr, &jpeg_size);
+        webusb_write_jpeg((uint8_t *)jpeg_image_addr, jpeg_size);
+
+        memset(_preview_buf, 0, sizeof(_preview_buf));
+
         if (_algoConfig.algo == ALGO_OBJECT_DETECTION)
         {
+            if (algo_object_det_get_preview(_preview_buf, sizeof(_preview_buf)) > 0)
+            {
+                webusb_write_text(_preview_buf, strlen(_preview_buf));
+            }
             _algoConfig.ret_len = ei_get_det_result_len();
         }
         else if (_algoConfig.algo == ALGO_OBJECT_COUNTING)
         {
+            if (algo_object_cnt_get_preview(_preview_buf, sizeof(_preview_buf)) > 0)
+            {
+                webusb_write_text(_preview_buf, strlen(_preview_buf));
+            }
             _algoConfig.ret_len = ei_get_cnt_result_len();
         }
 

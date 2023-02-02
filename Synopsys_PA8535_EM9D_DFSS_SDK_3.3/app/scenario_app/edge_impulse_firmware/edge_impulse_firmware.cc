@@ -32,6 +32,8 @@ extern "C" {
 };
 
 #include "external_flash.h"
+#include "webusb.h"
+
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include "firmware-sdk/at_base64_lib.h"
 #include "firmware-sdk/at-server/ei_at_server.h"
@@ -57,6 +59,7 @@ extern "C" int edge_impulse_firmware(void)
 
     hx_drv_timer_init();
     debugger_init();
+    webusb_init();
     external_flash_xip_enable();
     console_uart = hx_drv_uart_get_dev((USE_SS_UART_E)CONSOLE_UART_ID);
 
