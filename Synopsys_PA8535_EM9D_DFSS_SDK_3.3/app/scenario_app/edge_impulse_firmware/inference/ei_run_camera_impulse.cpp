@@ -40,7 +40,7 @@ static inference_state_t state = INFERENCE_STOPPED;
 static uint64_t last_inference_ts = 0;
 static bool debug_mode = false;
 static bool continuous_mode = false;
-static float confidence_threshold = 0.5;
+static float confidence_threshold = 0.5f;
 static uint8_t *snapshot_buf = nullptr;
 static uint32_t snapshot_buf_size;
 static uint32_t inference_delay;
@@ -148,12 +148,12 @@ void ei_run_impulse(void)
     for (size_t ix = 0; ix < result.bounding_boxes_count; ix++)
     {
         auto bb = result.bounding_boxes[ix];
-        object_detection_t obj_det;
-        if (bb.value < confidence_threshold)
+        if (bb.value <= confidence_threshold)
         {
             continue;
         }
         // convert bounding box to object detection
+        object_detection_t obj_det;
         obj_det.x = bb.x;
         obj_det.y = bb.y;
         obj_det.w = bb.width;
