@@ -138,7 +138,6 @@ __attribute__((unused)) int extract_raw_features(signal_t *signal, matrix_t *out
     return EIDSP_OK;
 }
 
-
 __attribute__((unused)) int extract_flatten_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float frequency) {
     ei_dsp_config_flatten_t config = *((ei_dsp_config_flatten_t*)config_ptr);
 
@@ -1211,7 +1210,7 @@ __attribute__((unused)) int extract_image_features(signal_t *signal, matrix_t *o
 
 #if (EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1) && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI)
 
-__attribute__((unused)) int extract_drpai_features_quantized(signal_t *signal, matrix_i8_t *output_matrix, void *config_ptr, const float frequency) {
+__attribute__((unused)) int extract_drpai_features_quantized(signal_t *signal, matrix_u8_t *output_matrix, void *config_ptr, const float frequency) {
     ei_dsp_config_image_t config = *((ei_dsp_config_image_t*)config_ptr);
 
     int16_t channel_count = strcmp(config.channels, "Grayscale") == 0 ? 1 : 3;
@@ -1243,13 +1242,13 @@ __attribute__((unused)) int extract_drpai_features_quantized(signal_t *signal, m
             uint32_t pixel = static_cast<uint32_t>(input_matrix.buffer[jx]);
 
             if (channel_count == 3) {
-                int32_t r = static_cast<int32_t>(pixel >> 16 & 0xff);
-                int32_t g = static_cast<int32_t>(pixel >> 8 & 0xff);
-                int32_t b = static_cast<int32_t>(pixel & 0xff);
+                uint8_t r = static_cast<uint8_t>(pixel >> 16 & 0xff);
+                uint8_t g = static_cast<uint8_t>(pixel >> 8 & 0xff);
+                uint8_t b = static_cast<uint8_t>(pixel & 0xff);
 
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(r);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(g);
-                output_matrix->buffer[output_ix++] = static_cast<int8_t>(b);
+                output_matrix->buffer[output_ix++] = r;
+                output_matrix->buffer[output_ix++] = g;
+                output_matrix->buffer[output_ix++] = b;
             }
             else {
                 //NOTE: not implementing greyscale yet
@@ -1264,7 +1263,6 @@ __attribute__((unused)) int extract_drpai_features_quantized(signal_t *signal, m
 #endif //(EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1) && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI)
 
 #if (EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1) && (EI_CLASSIFIER_INFERENCING_ENGINE != EI_CLASSIFIER_DRPAI)
-
 __attribute__((unused)) int extract_image_features_quantized(const ei_impulse_t *impulse, signal_t *signal, matrix_i8_t *output_matrix, void *config_ptr, const float frequency) {
     ei_dsp_config_image_t config = *((ei_dsp_config_image_t*)config_ptr);
 

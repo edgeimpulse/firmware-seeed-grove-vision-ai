@@ -41,6 +41,9 @@ using namespace ei;
     #if (EI_CLASSIFIER_OBJECT_DETECTION_LAST_LAYER == EI_CLASSIFIER_LAST_LAYER_YOLOX)
     #define EI_HAS_YOLOX 1
     #endif
+    #if (EI_CLASSIFIER_OBJECT_DETECTION_LAST_LAYER == EI_CLASSIFIER_LAST_LAYER_YOLOV7)
+    #define EI_HAS_YOLOV7 1
+    #endif
 #endif
 
 #ifdef EI_HAS_FOMO
@@ -164,7 +167,7 @@ __attribute__((unused)) static void fill_result_struct_from_cubes(ei_impulse_res
     }
 
     // if we didn't detect min required objects, fill the rest with fixed value
-    if(added_boxes_count < object_detection_count) {
+    if (added_boxes_count < object_detection_count) {
         results.resize(object_detection_count);
         for (size_t ix = added_boxes_count; ix < object_detection_count; ix++) {
             results[ix].value = 0.0f;
@@ -365,7 +368,6 @@ __attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32(const ei_
 
 /**
   * Fill the result structure from an unquantized output tensor
-  * (we don't support quantized here a.t.m.)
   */
 __attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolov5(const ei_impulse_t *impulse,
                                                                               ei_impulse_result_t *result,
@@ -438,6 +440,114 @@ __attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolov5(co
     EI_IMPULSE_ERROR nms_res = ei_run_nms(&results);
     if (nms_res != EI_IMPULSE_OK) {
         return nms_res;
+    }
+
+    // if we didn't detect min required objects, fill the rest with fixed value
+    size_t added_boxes_count = results.size();
+    size_t min_object_detection_count = impulse->object_detection_count;
+    if (added_boxes_count < min_object_detection_count) {
+        results.resize(min_object_detection_count);
+        for (size_t ix = added_boxes_count; ix < min_object_detection_count; ix++) {
+            results[ix].value = 0.0f;
+        }
+    }
+
+    result->bounding_boxes = results.data();
+    result->bounding_boxes_count = results.size();
+
+    return EI_IMPULSE_OK;
+#else
+    return EI_IMPULSE_LAST_LAYER_NOT_AVAILABLE;
+#endif
+}
+
+/**
+ * Fill the result structure from a quantized output tensor
+*/
+template<typename T>
+__attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_quantized_yolov5(const ei_impulse_t *impulse,
+                                                                                    ei_impulse_result_t *result,
+                                                                                    int version,
+                                                                                    T *data,
+                                                                                    float zero_point,
+                                                                                    float scale,
+                                                                                    size_t output_features_count) {
+#ifdef EI_HAS_YOLOV5
+    static std::vector<ei_impulse_result_bounding_box_t> results;
+    results.clear();
+
+    size_t col_size = 5 + impulse->label_count;
+    size_t row_count = output_features_count / col_size;
+
+    for (size_t ix = 0; ix < row_count; ix++) {
+        size_t base_ix = ix * col_size;
+        float xc = (data[base_ix + 0] - zero_point) * scale;
+        float yc = (data[base_ix + 1] - zero_point) * scale;
+        float w = (data[base_ix + 2] - zero_point) * scale;
+        float h = (data[base_ix + 3] - zero_point) * scale;
+        float x = xc - (w / 2.0f);
+        float y = yc - (h / 2.0f);
+        if (x < 0) {
+            x = 0;
+        }
+        if (y < 0) {
+            y = 0;
+        }
+        if (x + w > impulse->input_width) {
+            w = impulse->input_width - x;
+        }
+        if (y + h > impulse->input_height) {
+            h = impulse->input_height - y;
+        }
+
+        if (w < 0 || h < 0) {
+            continue;
+        }
+
+        float score = (data[base_ix + 4] - zero_point) * scale;
+
+        uint32_t label = 0;
+        for (size_t lx = 0; lx < impulse->label_count; lx++) {
+            float l = (data[base_ix + 5 + lx] - zero_point) * scale;
+            if (l > 0.5f) {
+                label = lx;
+                break;
+            }
+        }
+
+        if (score >= impulse->object_detection_threshold && score <= 1.0f) {
+            ei_impulse_result_bounding_box_t r;
+            r.label = ei_classifier_inferencing_categories[label];
+
+            if (version != 5) {
+                x *= static_cast<float>(impulse->input_width);
+                y *= static_cast<float>(impulse->input_height);
+                w *= static_cast<float>(impulse->input_width);
+                h *= static_cast<float>(impulse->input_height);
+            }
+
+            r.x = static_cast<uint32_t>(x);
+            r.y = static_cast<uint32_t>(y);
+            r.width = static_cast<uint32_t>(w);
+            r.height = static_cast<uint32_t>(h);
+            r.value = score;
+            results.push_back(r);
+        }
+    }
+
+    EI_IMPULSE_ERROR nms_res = ei_run_nms(&results);
+    if (nms_res != EI_IMPULSE_OK) {
+        return nms_res;
+    }
+
+    // if we didn't detect min required objects, fill the rest with fixed value
+    size_t added_boxes_count = results.size();
+    size_t min_object_detection_count = impulse->object_detection_count;
+    if (added_boxes_count < min_object_detection_count) {
+        results.resize(min_object_detection_count);
+        for (size_t ix = added_boxes_count; ix < min_object_detection_count; ix++) {
+            results[ix].value = 0.0f;
+        }
     }
 
     result->bounding_boxes = results.data();
@@ -632,6 +742,16 @@ __attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolox(con
         return nms_res;
     }
 
+    // if we didn't detect min required objects, fill the rest with fixed value
+    size_t added_boxes_count = results.size();
+    size_t min_object_detection_count = impulse->object_detection_count;
+    if (added_boxes_count < min_object_detection_count) {
+        results.resize(min_object_detection_count);
+        for (size_t ix = added_boxes_count; ix < min_object_detection_count; ix++) {
+            results[ix].value = 0.0f;
+        }
+    }
+
     result->bounding_boxes = results.data();
     result->bounding_boxes_count = results.size();
 
@@ -639,6 +759,133 @@ __attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolox(con
 #else
     return EI_IMPULSE_LAST_LAYER_NOT_AVAILABLE;
 #endif // EI_HAS_YOLOX
+}
+
+/**
+  * Fill the result structure from an unquantized output tensor
+  * (we don't support quantized here a.t.m.)
+  */
+__attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolox_detect(const ei_impulse_t *impulse, ei_impulse_result_t *result,
+                                                                             float *data,
+                                                                             size_t output_features_count) {
+#ifdef EI_HAS_YOLOX
+    static std::vector<ei_impulse_result_bounding_box_t> results;
+    results.clear();
+
+    // expected format [xmin ymin xmax ymax score label]
+    const int output_rows = output_features_count / (5 + impulse->label_count);
+    matrix_t outputs(output_rows, 5 + impulse->label_count, data);
+
+    // iterate through scores to see if we have anything with confidence
+    for (int row = 0; row < (int)outputs.rows; row++) {
+        float confidence = outputs.buffer[(row * outputs.cols) + 4];
+        int class_idx = (int)outputs.buffer[(row * outputs.cols) + 5];
+
+        //if (confidence >= impulse->object_detection_threshold && confidence <= 1.0f) {
+        //TODO: ignore confidence threshold (but still filtering '-1' returned) until we fix this
+        if (confidence >= 0.0f && confidence <= 1.0f) {
+            ei_impulse_result_bounding_box_t r;
+            r.label = ei_classifier_inferencing_categories[class_idx];
+            r.value = confidence;
+
+            // now find the box...
+            float xmin = outputs.buffer[(row * outputs.cols) + 0];
+            float ymin = outputs.buffer[(row * outputs.cols) + 1];
+            float xmax = outputs.buffer[(row * outputs.cols) + 2];
+            float ymax = outputs.buffer[(row * outputs.cols) + 3];
+
+            float width  = xmax - xmin;
+            float height = ymax - ymin;
+
+            int x = (int)xmin;
+            int y = (int)ymin;
+
+            if (x < 0) {
+                x = 0;
+            }
+            if (x > (int)impulse->input_width) {
+                x = impulse->input_width;
+            }
+            if (y < 0) {
+                y = 0;
+            }
+            if (y > (int)impulse->input_height) {
+                y = impulse->input_height;
+            }
+
+            r.x = x;
+            r.y = y;
+            r.width = (int)round(width);
+            r.height = (int)round(height);
+
+            results.push_back(r);
+        }
+    }
+
+    result->bounding_boxes = results.data();
+    result->bounding_boxes_count = results.size();
+
+    return EI_IMPULSE_OK;
+#else
+    return EI_IMPULSE_LAST_LAYER_NOT_AVAILABLE;
+#endif // EI_HAS_YOLOX
+}
+
+/**
+  * Fill the result structure from an unquantized output tensor
+  * (we don't support quantized here a.t.m.)
+  */
+__attribute__((unused)) static EI_IMPULSE_ERROR fill_result_struct_f32_yolov7(const ei_impulse_t *impulse, ei_impulse_result_t *result,
+                                                                              float *data,
+                                                                              size_t output_features_count) {
+#ifdef EI_HAS_YOLOV7
+    static std::vector<ei_impulse_result_bounding_box_t> results;
+    results.clear();
+
+    size_t col_size = 7;
+    size_t row_count = output_features_count / col_size;
+
+    // output is:
+    // batch_id, xmin, ymin, xmax, ymax, cls_id, score
+    for (size_t ix = 0; ix < row_count; ix++) {
+        size_t base_ix = ix * col_size;
+        float xmin = data[base_ix + 1];
+        float ymin = data[base_ix + 2];
+        float xmax = data[base_ix + 3];
+        float ymax = data[base_ix + 4];
+        uint32_t label = (uint32_t)data[base_ix + 5];
+        float score = data[base_ix + 6];
+
+        if (score >= impulse->object_detection_threshold && score <= 1.0f) {
+            ei_impulse_result_bounding_box_t r;
+            r.label = ei_classifier_inferencing_categories[label];
+
+            r.x = static_cast<uint32_t>(xmin);
+            r.y = static_cast<uint32_t>(ymin);
+            r.width = static_cast<uint32_t>(xmax - xmin);
+            r.height = static_cast<uint32_t>(ymax - ymin);
+            r.value = score;
+            results.push_back(r);
+        }
+    }
+
+    // if we didn't detect min required objects, fill the rest with fixed value
+    size_t added_boxes_count = results.size();
+    size_t min_object_detection_count = impulse->object_detection_count;
+    if (added_boxes_count < min_object_detection_count) {
+        results.resize(min_object_detection_count);
+        for (size_t ix = added_boxes_count; ix < min_object_detection_count; ix++) {
+            results[ix].value = 0.0f;
+        }
+    }
+
+    result->bounding_boxes = results.data();
+    result->bounding_boxes_count = results.size();
+
+    return EI_IMPULSE_OK;
+#else
+    return EI_IMPULSE_LAST_LAYER_NOT_AVAILABLE;
+#endif // #ifdef EI_HAS_YOLOV7
 }
 
 #endif // _EI_CLASSIFIER_FILL_RESULT_STRUCT_H_

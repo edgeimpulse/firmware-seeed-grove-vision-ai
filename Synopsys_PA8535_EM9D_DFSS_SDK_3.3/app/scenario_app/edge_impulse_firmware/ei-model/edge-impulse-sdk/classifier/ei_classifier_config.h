@@ -20,13 +20,14 @@
 
 // clang-format off
 #if EI_CLASSIFIER_TFLITE_ENABLE_SILABS_MVP == 1
-    #define EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN      0
+    #define EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN        0
+    #define EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES  1
 #endif
 
 #ifndef EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN
 #if defined(__MBED__)
-    #include "mbed.h"
-    #if (MBED_VERSION < MBED_ENCODE_VERSION(5, 7, 0))
+    #include "mbed_version.h"
+    #if (MBED_VERSION < MBED_ENCODE_VERSION((5), (7), (0)))
         #define EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN      0
     #else
         #define EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN      1
@@ -52,7 +53,8 @@
 #endif // EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN == 1
 
 #if EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN == 1
-#define CMSIS_NN                    1
+#define CMSIS_NN                                     1
+#define EI_CLASSIFIER_TFLITE_LOAD_CMSIS_NN_SOURCES   1
 #endif
 
 #ifndef EI_CLASSIFIER_TFLITE_ENABLE_ARC

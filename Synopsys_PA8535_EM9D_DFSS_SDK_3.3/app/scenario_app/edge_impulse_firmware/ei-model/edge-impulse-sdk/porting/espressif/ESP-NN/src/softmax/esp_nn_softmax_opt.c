@@ -1,3 +1,5 @@
+#include "edge-impulse-sdk/classifier/ei_classifier_config.h"
+#if EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN
 // Copyright 2022 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -106,3 +108,5 @@ void esp_nn_softmax_s8_opt(const int8_t *input_data,
         out_ptr += width;
     }
 }
+
+#endif // EI_CLASSIFIER_TFLITE_ENABLE_ESP_NN

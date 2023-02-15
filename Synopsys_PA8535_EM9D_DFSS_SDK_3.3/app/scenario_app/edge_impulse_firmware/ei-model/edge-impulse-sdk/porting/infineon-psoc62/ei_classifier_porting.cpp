@@ -77,6 +77,11 @@ void ei_putchar(char c)
     putchar(c);
 }
 
+__attribute__((weak)) char ei_getchar(void)
+{
+    return getchar();
+}
+
 __attribute__((weak)) void ei_printf(const char *format, ...) {
 
     char buffer[256];

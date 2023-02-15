@@ -33,6 +33,7 @@ extern "C" {
     uint32_t sl_sleeptimer_tick_to_ms(uint32_t tick);
 }
 #endif
+
 __attribute__((weak)) EI_IMPULSE_ERROR ei_run_impulse_check_canceled() {
     return EI_IMPULSE_OK;
 }
@@ -66,6 +67,22 @@ void ei_putchar(char c)
     sl_putchar(c);
 }
 #endif
+
+__attribute__((weak)) char ei_getchar()
+{
+#if defined(EFR32MG24B310F1536IM48) && EFR32MG24B310F1536IM48==1
+    char ch = 0;
+
+    if(sl_getchar(&ch) == SL_STATUS_OK) {
+        return ch;
+    }
+    else {
+        return 0;
+    }
+#else
+    return getchar();
+#endif
+}
 
 __attribute__((weak)) void ei_printf(const char *format, ...) {
     va_list myargs;

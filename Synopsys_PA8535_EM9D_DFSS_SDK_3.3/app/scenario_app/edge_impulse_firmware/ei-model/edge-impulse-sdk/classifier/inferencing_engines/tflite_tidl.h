@@ -193,10 +193,10 @@ extern "C" EI_IMPULSE_ERROR run_nn_inference(
             case EI_CLASSIFIER_LAST_LAYER_FOMO: {
                 #if EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED == 1
                     fill_res = fill_result_struct_i8_fomo(impulse, result, out_data, impulse->tflite_output_zeropoint, impulse->tflite_output_scale,
-                        impulse->input_width / 8, impulse->input_height / 8);
+                        impulse->fomo_output_size, impulse->fomo_output_size);
                 #else
                     fill_res = fill_result_struct_f32_fomo(impulse, result, out_data,
-                        impulse->input_width / 8, impulse->input_height / 8);
+                        impulse->fomo_output_size, impulse->fomo_output_size);
                 #endif
                 break;
             }
@@ -244,6 +244,24 @@ extern "C" EI_IMPULSE_ERROR run_nn_inference(
                         result,
                         out_data,
                         impulse->tflite_output_features_count);
+                #endif
+                break;
+            }
+            case EI_CLASSIFIER_LAST_LAYER_YOLOV7: {
+                #if EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED == 1
+                    ei_printf("ERR: YOLOV7 does not support quantized inference\n");
+                    return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
+                #else
+                    TfLiteTensor *output = interpreter->output_tensor(0);
+                    size_t output_feature_count = 1;
+                    for (int ix = 0; ix < output->dims->size; ix++) {
+                        output_feature_count *= output->dims->data[ix];
+                    }
+                    fill_res = fill_result_struct_f32_yolov7(
+                        impulse,
+                        result,
+                        output->data.f,
+                        output_feature_count);
                 #endif
                 break;
             }

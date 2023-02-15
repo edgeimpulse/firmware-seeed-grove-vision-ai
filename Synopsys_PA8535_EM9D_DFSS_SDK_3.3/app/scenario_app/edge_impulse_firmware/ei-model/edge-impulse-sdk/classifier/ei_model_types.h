@@ -33,6 +33,7 @@
 #define EI_CLASSIFIER_DRPAI                      7
 #define EI_CLASSIFIER_TFLITE_TIDL                8
 #define EI_CLASSIFIER_AKIDA                      9
+#define EI_CLASSIFIER_ONNX_TIDL                  10
 
 #define EI_CLASSIFIER_SENSOR_UNKNOWN             -1
 #define EI_CLASSIFIER_SENSOR_MICROPHONE          1
@@ -52,6 +53,7 @@
 #define EI_CLASSIFIER_LAST_LAYER_YOLOV5                3
 #define EI_CLASSIFIER_LAST_LAYER_YOLOX                 4
 #define EI_CLASSIFIER_LAST_LAYER_YOLOV5_V5_DRPAI       5
+#define EI_CLASSIFIER_LAST_LAYER_YOLOV7                6
 
 struct ei_impulse;
 
@@ -102,6 +104,7 @@ typedef struct ei_impulse {
     uint8_t tflite_output_score_tensor;
     uint8_t tflite_output_data_tensor;
     uint32_t tflite_output_features_count;
+    uint32_t fomo_output_size;
 
     uint32_t tflite_arena_size;
     const uint8_t *model_arr;
@@ -130,5 +133,25 @@ typedef struct ei_impulse {
     TfLiteStatus (*model_reset)(void (*free)(void* ptr));
     const char **categories;
 } ei_impulse_t;
+
+typedef struct {
+    uint32_t block_id;
+    uint16_t implementation_version;
+    int axes;
+    const unsigned char *model;
+    size_t model_size;
+    size_t arena_size;
+} ei_dsp_config_tflite_t;
+
+typedef struct {
+    uint32_t block_id;
+    uint16_t implementation_version;
+    int axes;
+    TfLiteStatus (*init_fn)(void*(*alloc_fnc)(size_t, size_t));
+    TfLiteStatus (*invoke_fn)();
+    TfLiteStatus (*reset_fn)(void (*free)(void* ptr));
+    TfLiteTensor* (*input_fn)(int);
+    TfLiteTensor* (*output_fn)(int);
+} ei_dsp_config_tflite_eon_t;
 
 #endif // _EDGE_IMPULSE_MODEL_TYPES_H_

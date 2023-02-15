@@ -33,6 +33,7 @@
 #include "edge-impulse-sdk/classifier/ei_aligned_malloc.h"
 #include "edge-impulse-sdk/classifier/ei_fill_result_struct.h"
 #include "edge-impulse-sdk/classifier/ei_model_types.h"
+#include "edge-impulse-sdk/classifier/inferencing_engines/tflite_helper.h"
 
 #if defined(EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER) && EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER == 1
 #include "tflite-model/tflite-resolver.h"
@@ -40,25 +41,6 @@
 
 static tflite::MicroErrorReporter micro_error_reporter;
 static tflite::ErrorReporter* error_reporter = &micro_error_reporter;
-
-#if defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
-namespace tflite {
-namespace ops {
-namespace micro {
-extern TfLiteRegistration Register_TFLite_Detection_PostProcess(void);
-}  // namespace micro
-}  // namespace ops
-
-
-extern float post_process_boxes[10 * 4 * sizeof(float)];
-extern float post_process_classes[10];
-extern float post_process_scores[10];
-
-}  // namespace tflite
-
-static TfLiteRegistration post_process_op = tflite::ops::micro::Register_TFLite_Detection_PostProcess();
-
-#endif // defined(EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP)
 
 #ifdef EI_CLASSIFIER_ALLOCATION_STATIC
 #if defined __GNUC__
@@ -69,6 +51,45 @@ static TfLiteRegistration post_process_op = tflite::ops::micro::Register_TFLite_
 #define ALIGN(X) __align(X)
 #endif
 #endif
+
+// Subset of things required from ei_impulse_t to invoke a TFLite Micro model
+typedef struct {
+    uint32_t project_id;
+    uint32_t block_id;
+
+    uint32_t nn_input_frame_size;
+    float frequency;
+
+    bool object_detection;
+    int8_t object_detection_last_layer;
+    uint8_t tflite_output_data_tensor;
+    uint8_t tflite_output_labels_tensor;
+    uint8_t tflite_output_score_tensor;
+
+    uint32_t tflite_arena_size;
+    const uint8_t *model_arr;
+    size_t model_arr_size;
+} ei_nn_tflite_micro_t;
+
+extern "C" {
+    static const ei_nn_tflite_micro_t get_nn_config_from_impulse(const ei_impulse_t *impulse) {
+        const ei_nn_tflite_micro_t config = {
+            .project_id = impulse->project_id,
+            .block_id = 0xffffffff, // we don't have one for learn blocks, so just set to max value here
+            .nn_input_frame_size = impulse->nn_input_frame_size,
+            .frequency = impulse->frequency,
+            .object_detection = impulse->object_detection,
+            .object_detection_last_layer = impulse->object_detection_last_layer,
+            .tflite_output_data_tensor = impulse->tflite_output_data_tensor,
+            .tflite_output_labels_tensor = impulse->tflite_output_labels_tensor,
+            .tflite_output_score_tensor = impulse->tflite_output_score_tensor,
+            .tflite_arena_size = impulse->tflite_arena_size,
+            .model_arr = impulse->model_arr,
+            .model_arr_size = impulse->model_arr_size
+        };
+        return config;
+    }
+}
 
 /**
  * Setup the TFLite runtime
@@ -81,7 +102,11 @@ static TfLiteRegistration post_process_op = tflite::ops::micro::Register_TFLite_
  *
  * @return  EI_IMPULSE_OK if successful
  */
-static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint64_t *ctx_start_us, TfLiteTensor** input, TfLiteTensor** output,
+static EI_IMPULSE_ERROR inference_tflite_setup(
+    const ei_nn_tflite_micro_t *config,
+    uint64_t *ctx_start_us,
+    TfLiteTensor** input,
+    TfLiteTensor** output,
     TfLiteTensor** output_labels,
     TfLiteTensor** output_scores,
     tflite::MicroInterpreter** micro_interpreter,
@@ -95,20 +120,25 @@ static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint
     p_tensor_arena = ei_unique_ptr_t(tensor_arena, [](void*){});
 #else
     // Create an area of memory to use for input, output, and intermediate arrays.
-    uint8_t *tensor_arena = (uint8_t*)ei_aligned_calloc(16, impulse->tflite_arena_size);
+    uint8_t *tensor_arena = (uint8_t*)ei_aligned_calloc(16, config->tflite_arena_size);
     if (tensor_arena == NULL) {
-        ei_printf("Failed to allocate TFLite arena (%d bytes)\n", impulse->tflite_arena_size);
+        ei_printf("Failed to allocate TFLite arena (%d bytes)\n", config->tflite_arena_size);
         return EI_IMPULSE_TFLITE_ARENA_ALLOC_FAILED;
     }
     p_tensor_arena = ei_unique_ptr_t(tensor_arena, ei_aligned_free);
 #endif
 
     static bool tflite_first_run = true;
-    static uint32_t project_id = 0;
+    static uint32_t last_project_id = 0;
+    static uint32_t last_block_id = 0;
 
-    if (project_id != impulse->project_id) {
+    if (last_project_id != config->project_id) {
         tflite_first_run = true;
-        project_id = impulse->project_id;
+        last_project_id = config->project_id;
+    }
+    if (last_block_id != config->block_id) {
+        tflite_first_run = true;
+        last_block_id = config->block_id;
     }
 
     static const tflite::Model* model = nullptr;
@@ -121,7 +151,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint
     if (tflite_first_run) {
         // Map the model into a usable data structure. This doesn't involve any
         // copying or parsing, it's a very lightweight operation.
-        model = tflite::GetModel(impulse->model_arr);
+        model = tflite::GetModel(config->model_arr);
         if (model->version() != TFLITE_SCHEMA_VERSION) {
             error_reporter->Report(
                 "Model provided is schema version %d not equal "
@@ -129,6 +159,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint
                 model->version(), TFLITE_SCHEMA_VERSION);
             return EI_IMPULSE_TFLITE_ERROR;
         }
+        tflite_first_run = false;
     }
 
 #ifdef EI_TFLITE_RESOLVER
@@ -142,7 +173,7 @@ static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint
 
     // Build an interpreter to run the model with.
     tflite::MicroInterpreter *interpreter = new tflite::MicroInterpreter(
-        model, resolver, tensor_arena, impulse->tflite_arena_size, error_reporter);
+        model, resolver, tensor_arena, config->tflite_arena_size, error_reporter);
 
     *micro_interpreter = interpreter;
 
@@ -155,30 +186,11 @@ static EI_IMPULSE_ERROR inference_tflite_setup(const ei_impulse_t *impulse, uint
 
     // Obtain pointers to the model's input and output tensors.
     *input = interpreter->input(0);
-    *output = interpreter->output(impulse->tflite_output_data_tensor);
+    *output = interpreter->output(config->tflite_output_data_tensor);
 
-    if (impulse->object_detection_last_layer == EI_CLASSIFIER_LAST_LAYER_SSD) {
-        *output_scores = interpreter->output(impulse->tflite_output_score_tensor);
-        *output_labels = interpreter->output(impulse->tflite_output_labels_tensor);
-    }
-
-    if (tflite_first_run) {
-        assert((*input)->type == impulse->tflite_input_datatype);
-        assert((*output)->type == impulse->tflite_output_datatype);
-        if (impulse->object_detection_last_layer == EI_CLASSIFIER_LAST_LAYER_SSD) {
-            assert((*output_scores)->type == impulse->tflite_output_datatype);
-            assert((*output_labels)->type == impulse->tflite_output_datatype);
-        }
-        if (impulse->tflite_input_quantized) {
-            assert((*input)->params.scale == impulse->tflite_input_scale);
-            assert((*input)->params.zero_point == impulse->tflite_input_zeropoint);
-        }
-        if (impulse->tflite_output_quantized) {
-            assert((*output)->params.scale == impulse->tflite_output_scale);
-            assert((*output)->params.zero_point == impulse->tflite_output_zeropoint);
-        }
-
-        tflite_first_run = true;
+    if (config->object_detection_last_layer == EI_CLASSIFIER_LAST_LAYER_SSD) {
+        *output_scores = interpreter->output(config->tflite_output_score_tensor);
+        *output_labels = interpreter->output(config->tflite_output_labels_tensor);
     }
 
     return EI_IMPULSE_OK;
@@ -209,10 +221,10 @@ static EI_IMPULSE_ERROR inference_tflite_run(const ei_impulse_t *impulse,
     // Run inference, and report any error
     TfLiteStatus invoke_status = interpreter->Invoke();
     if (invoke_status != kTfLiteOk) {
+        delete interpreter;
         error_reporter->Report("Invoke failed (%d)\n", invoke_status);
         return EI_IMPULSE_TFLITE_ERROR;
     }
-    delete interpreter;
 
     uint64_t ctx_end_us = ei_read_timer_us();
 
@@ -224,58 +236,10 @@ static EI_IMPULSE_ERROR inference_tflite_run(const ei_impulse_t *impulse,
         ei_printf("Predictions (time: %d ms.):\n", result->timing.classification);
     }
 
-    EI_IMPULSE_ERROR fill_res = EI_IMPULSE_OK;
+    EI_IMPULSE_ERROR fill_res = fill_result_struct_from_output_tensor_tflite(
+        impulse, output, labels_tensor, scores_tensor, result, debug);
 
-    if (impulse->object_detection) {
-        switch (impulse->object_detection_last_layer) {
-            case EI_CLASSIFIER_LAST_LAYER_FOMO: {
-                bool int8_output = output->type == TfLiteType::kTfLiteInt8;
-                if (int8_output) {
-                    fill_res = fill_result_struct_i8_fomo(impulse, result, output->data.int8, output->params.zero_point, output->params.scale,
-                        (int)output->dims->data[1], (int)output->dims->data[2]);
-                }
-                else {
-                    fill_res = fill_result_struct_f32_fomo(impulse, result, output->data.f, (int)output->dims->data[1], (int)output->dims->data[2]);
-                }
-                break;
-            }
-            case EI_CLASSIFIER_LAST_LAYER_SSD: {
-                #if EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP
-                    fill_res = fill_result_struct_f32_object_detection(impulse, result, tflite::post_process_boxes, tflite::post_process_scores, tflite::post_process_classes, debug);
-                #else
-                    ei_printf("ERR: Cannot run SSD model, EI_CLASSIFIER_ENABLE_DETECTION_POSTPROCESS_OP is disabled\n");
-                    return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
-                #endif
-
-                break;
-            }
-            case EI_CLASSIFIER_LAST_LAYER_YOLOV5:
-            case EI_CLASSIFIER_LAST_LAYER_YOLOV5_V5_DRPAI: {
-                ei_printf("ERR: YOLOv5 models are not supported using EON Compiler, use full TFLite (%d)\n",
-                    impulse->object_detection_last_layer);
-                return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
-            }
-            case EI_CLASSIFIER_LAST_LAYER_YOLOX: {
-                ei_printf("ERR: YOLOX models are not supported using EON Compiler, use full TFLite (%d)\n",
-                    impulse->object_detection_last_layer);
-                return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
-            }
-            default: {
-                ei_printf("ERR: Unsupported object detection last layer (%d)\n",
-                    impulse->object_detection_last_layer);
-                return EI_IMPULSE_UNSUPPORTED_INFERENCING_ENGINE;
-            }
-        }
-    }
-    else {
-        bool int8_output = output->type == TfLiteType::kTfLiteInt8;
-        if (int8_output) {
-            fill_res = fill_result_struct_i8(impulse, result, output->data.int8, output->params.zero_point, output->params.scale, debug);
-        }
-        else {
-            fill_res = fill_result_struct_f32(impulse, result, output->data.f, debug);
-        }
-    }
+    delete interpreter;
 
     if (fill_res != EI_IMPULSE_OK) {
         return fill_res;
@@ -284,6 +248,63 @@ static EI_IMPULSE_ERROR inference_tflite_run(const ei_impulse_t *impulse,
     if (ei_run_impulse_check_canceled() == EI_IMPULSE_CANCELED) {
         return EI_IMPULSE_CANCELED;
     }
+
+    return EI_IMPULSE_OK;
+}
+
+
+/**
+ * @brief      Do neural network inferencing over a signal (from the DSP)
+ *
+ * @param      fmatrix  Processed matrix
+ * @param      result   Output classifier results
+ * @param[in]  debug    Debug output enable
+ *
+ * @return     The ei impulse error.
+ */
+EI_IMPULSE_ERROR run_nn_inference_from_dsp(
+    const ei_nn_tflite_micro_t *config,
+    signal_t *signal,
+    matrix_t *output_matrix)
+{
+    TfLiteTensor* input;
+    TfLiteTensor* output;
+    TfLiteTensor* output_scores;
+    TfLiteTensor* output_labels;
+    uint64_t ctx_start_us = ei_read_timer_us();
+    ei_unique_ptr_t p_tensor_arena(nullptr, ei_aligned_free);
+
+    tflite::MicroInterpreter* interpreter;
+    EI_IMPULSE_ERROR init_res = inference_tflite_setup(
+        config,
+        &ctx_start_us,
+        &input, &output,
+        &output_labels,
+        &output_scores,
+        &interpreter, p_tensor_arena);
+
+    if (init_res != EI_IMPULSE_OK) {
+        return init_res;
+    }
+
+    EI_IMPULSE_ERROR input_res = fill_input_tensor_from_signal(signal, input);
+    if (input_res != EI_IMPULSE_OK) {
+        return input_res;
+    }
+
+    // Run inference, and report any error
+    TfLiteStatus invoke_status = interpreter->Invoke();
+    if (invoke_status != kTfLiteOk) {
+        error_reporter->Report("Invoke failed (%d)\n", invoke_status);
+        return EI_IMPULSE_TFLITE_ERROR;
+    }
+
+    EI_IMPULSE_ERROR output_res = fill_output_matrix_from_tensor(output, output_matrix);
+    if (output_res != EI_IMPULSE_OK) {
+        return output_res;
+    }
+
+    delete interpreter;
 
     return EI_IMPULSE_OK;
 }
@@ -303,6 +324,8 @@ EI_IMPULSE_ERROR run_nn_inference(
     ei_impulse_result_t *result,
     bool debug = false)
 {
+    const ei_nn_tflite_micro_t config = get_nn_config_from_impulse(impulse);
+
     TfLiteTensor* input;
     TfLiteTensor* output;
     TfLiteTensor* output_scores;
@@ -311,12 +334,14 @@ EI_IMPULSE_ERROR run_nn_inference(
     ei_unique_ptr_t p_tensor_arena(nullptr, ei_aligned_free);
 
     tflite::MicroInterpreter* interpreter;
-    EI_IMPULSE_ERROR init_res = inference_tflite_setup(impulse,
+    EI_IMPULSE_ERROR init_res = inference_tflite_setup(
+        &config,
         &ctx_start_us,
         &input, &output,
         &output_labels,
         &output_scores,
-        &interpreter, p_tensor_arena);
+        &interpreter,
+        p_tensor_arena);
 
     if (init_res != EI_IMPULSE_OK) {
         return init_res;
@@ -324,30 +349,9 @@ EI_IMPULSE_ERROR run_nn_inference(
 
     uint8_t* tensor_arena = static_cast<uint8_t*>(p_tensor_arena.get());
 
-    switch (input->type) {
-        case kTfLiteFloat32: {
-            for (size_t ix = 0; ix < fmatrix->rows * fmatrix->cols; ix++) {
-                input->data.f[ix] = fmatrix->buffer[ix];
-            }
-            break;
-        }
-        case kTfLiteInt8: {
-            for (size_t ix = 0; ix < fmatrix->rows * fmatrix->cols; ix++) {
-                float pixel = (float)fmatrix->buffer[ix];
-                input->data.int8[ix] = static_cast<int8_t>(round(pixel / input->params.scale) + input->params.zero_point);
-            }
-            break;
-        }
-        case kTfLiteUInt8: {
-            for (size_t ix = 0; ix < fmatrix->rows * fmatrix->cols; ix++) {
-                float pixel = (float)fmatrix->buffer[ix];
-                input->data.uint8[ix] = static_cast<uint8_t>((pixel / impulse->tflite_input_scale) + impulse->tflite_input_zeropoint);
-            }
-        }
-        default: {
-            ei_printf("ERR: Cannot handle input type (%d)\n", input->type);
-            return EI_IMPULSE_INPUT_TENSOR_WAS_NULL;
-        }
+    auto input_res = fill_input_tensor_from_matrix(fmatrix, input);
+    if (input_res != EI_IMPULSE_OK) {
+        return input_res;
     }
 
     EI_IMPULSE_ERROR run_res = inference_tflite_run(impulse,
@@ -378,6 +382,8 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
     ei_impulse_result_t *result,
     bool debug = false)
 {
+    const ei_nn_tflite_micro_t config = get_nn_config_from_impulse(impulse);
+
     memset(result, 0, sizeof(ei_impulse_result_t));
 
     uint64_t ctx_start_us;
@@ -385,10 +391,10 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
     TfLiteTensor* output;
     TfLiteTensor* output_scores;
     TfLiteTensor* output_labels;
-    ei_unique_ptr_t p_tensor_arena(nullptr,ei_aligned_free);
+    ei_unique_ptr_t p_tensor_arena(nullptr, ei_aligned_free);
 
     tflite::MicroInterpreter* interpreter;
-    EI_IMPULSE_ERROR init_res = inference_tflite_setup(impulse,
+    EI_IMPULSE_ERROR init_res = inference_tflite_setup(&config,
         &ctx_start_us,
         &input, &output,
         &output_labels,
@@ -400,7 +406,7 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
         return init_res;
     }
 
-    if (input->type != TfLiteType::kTfLiteInt8) {
+    if (input->type != TfLiteType::kTfLiteInt8 && input->type != TfLiteType::kTfLiteUInt8) {
         return EI_IMPULSE_ONLY_SUPPORTED_FOR_IMAGES;
     }
 
@@ -452,6 +458,32 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
     return EI_IMPULSE_OK;
 }
 #endif // EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1
+
+__attribute__((unused)) int extract_tflite_features(signal_t *signal, matrix_t *output_matrix, void *config_ptr, const float frequency) {
+    ei_dsp_config_tflite_t config = *((ei_dsp_config_tflite_t*)config_ptr);
+
+    const ei_nn_tflite_micro_t nn_config = {
+        0, // project_id
+        config.block_id, // block_id
+        static_cast<uint32_t>(signal->total_length), // nn_input_frame_size
+        frequency, // frequency
+        false, // object_detection
+        EI_CLASSIFIER_LAST_LAYER_UNKNOWN, // object_detection_last_layer
+        0, // tflite_output_data_tensor
+        255, // tflite_output_labels_tensor
+        255, // tflite_output_score_tensor
+        static_cast<uint32_t>(config.arena_size), // tflite_arena_size
+        config.model, // model_arr
+        config.model_size // model_arr_size
+    };
+    EI_IMPULSE_ERROR x = run_nn_inference_from_dsp(&nn_config, signal, output_matrix);
+    if (x != EI_IMPULSE_OK) {
+        ei_printf("run_nn_inference_from_dsp failed with code %d\n", x);
+        EIDSP_ERR(EIDSP_INFERENCE_ERROR);
+    }
+
+    return EIDSP_OK;
+}
 
 #endif // (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE) && (EI_CLASSIFIER_COMPILED != 1)
 #endif // _EI_CLASSIFIER_INFERENCING_ENGINE_TFLITE_MICRO_H_

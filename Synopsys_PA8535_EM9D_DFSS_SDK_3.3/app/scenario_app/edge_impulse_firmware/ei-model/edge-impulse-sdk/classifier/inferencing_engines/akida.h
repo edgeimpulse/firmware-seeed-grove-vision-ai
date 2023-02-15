@@ -38,7 +38,7 @@
  * @brief If more than one device is present in system
  * setting this to device index can select a proper device.
  * e.g.: set to 1 to selct /dev/akida1
- * 
+ *
  */
 #ifndef EI_CLASSIFIER_USE_AKIDA_HARDWARE_NO
 #define EI_CLASSIFIER_USE_AKIDA_HARDWARE_NO 0
@@ -225,7 +225,7 @@ EI_IMPULSE_ERROR run_nn_inference(
         }
         akida_initialized = true;
     }
- 
+
     // according to:
     // https://doc.brainchipinc.com/api_reference/akida_apis.html#akida.Model.predict
     // input type is always uint8

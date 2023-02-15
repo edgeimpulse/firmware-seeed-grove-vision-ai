@@ -608,7 +608,7 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
 
     EI_LOGD("fmatrix size == Bpp * signal.total_length ( %p == %p * %p = %p )\r\n", proc[DRPAI_INDEX_INPUT].size, 3, signal->total_length, 3 * signal->total_length);
     // Creates a features matrix mapped to the DRP-AI UDMA input region
-    ei::matrix_i8_t features_matrix(1, proc[DRPAI_INDEX_INPUT].size, (int8_t *)drpai_input_buf);
+    ei::matrix_u8_t features_matrix(1, proc[DRPAI_INDEX_INPUT].size, drpai_input_buf);
 
     // Grabs the raw image buffer from the signal, DRP-AI will automatically
     // extract features
@@ -671,8 +671,8 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
                     impulse,
                     result,
                     drpai_output_buf,
-                    impulse->input_width / 8,
-                    impulse->input_height / 8);
+                    impulse->fomo_output_size,
+                    impulse->fomo_output_size);
                 break;
             }
             case EI_CLASSIFIER_LAST_LAYER_SSD: {

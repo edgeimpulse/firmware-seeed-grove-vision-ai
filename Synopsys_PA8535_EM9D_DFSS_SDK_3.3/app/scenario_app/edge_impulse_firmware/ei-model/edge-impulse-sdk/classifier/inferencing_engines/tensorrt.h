@@ -119,8 +119,8 @@ EI_IMPULSE_ERROR run_nn_inference(
                 impulse,
                 result,
                 out_data,
-                impulse->input_width / 8,
-                impulse->input_height / 8);
+                impulse->fomo_output_size,
+                impulse->fomo_output_size);
             break;
         }
         case EI_CLASSIFIER_LAST_LAYER_SSD: {

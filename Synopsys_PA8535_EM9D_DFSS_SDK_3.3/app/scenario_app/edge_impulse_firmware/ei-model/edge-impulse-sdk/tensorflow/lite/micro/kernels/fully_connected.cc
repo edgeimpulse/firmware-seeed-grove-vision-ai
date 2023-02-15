@@ -81,6 +81,12 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
       &(data->reference_op_data)));
 
   if (input->type == kTfLiteInt8) {
+    #if EI_TFLITE_DISABLE_FULLY_CONNECTED_IN_I8
+    TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
+                    TfLiteTypeGetName(output->type), output->type);
+    return kTfLiteError;
+    #endif
+
     RuntimeShape filter_shape = GetTensorShape(filter);
     RuntimeShape output_shape = GetTensorShape(output);
 
@@ -111,6 +117,12 @@ TfLiteStatus EvalQuantizedInt8(TfLiteContext* context, TfLiteNode* node,
                                const TfLiteEvalTensor* filter,
                                const TfLiteEvalTensor* bias,
                                TfLiteEvalTensor* output) {
+  #if EI_TFLITE_DISABLE_FULLY_CONNECTED_OUT_I8
+  TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
+                  TfLiteTypeGetName(output->type), output->type);
+  return kTfLiteError;
+  #endif
+
   const RuntimeShape output_shape = tflite::micro::GetTensorShape(output);
   TFLITE_DCHECK_EQ(output_shape.DimensionsCount(), 2);
   const int batches = output_shape.Dims(0);
@@ -442,6 +454,12 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
       IsMliApplicable(context, input, filter, bias, params);
 
   if (input->type == kTfLiteInt8 && data->is_mli_applicable) {
+    #if EI_TFLITE_DISABLE_FULLY_CONNECTED_OUT_I8
+    TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
+                    TfLiteTypeGetName(output->type), output->type);
+    return kTfLiteError;
+    #endif
+
     data->mli_in = static_cast<mli_tensor*>(
         context->AllocatePersistentBuffer(context, sizeof(mli_tensor)));
     data->mli_weights = static_cast<mli_tensor*>(
@@ -1301,7 +1319,7 @@ TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
           tflite::micro::GetTensorData<uint8_t>(output));
       break;
     }
-    
+
     default: {
       TF_LITE_KERNEL_LOG(context, "Type %s (%d) not supported.",
                          TfLiteTypeGetName(input->type), input->type);
