@@ -32,14 +32,18 @@ extern "C" {
 };
 
 #include "external_flash.h"
+#include "webusb.h"
+
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include "firmware-sdk/at_base64_lib.h"
 #include "firmware-sdk/at-server/ei_at_server.h"
 #include "firmware-sdk/at-server/ei_at_command_set.h"
+#include "firmware-sdk/i2c-server/ei_i2c_server.h"
 
 #include "ei_camera_ov2640.h"
 #include "ei_device_vision_ai.h"
 #include "ei_at_handlers.h"
+#include "ei_i2c_handlers.h"
 #include "ei_run_impulse.h"
 
 static DEV_UART *console_uart;
@@ -48,17 +52,21 @@ extern "C" int edge_impulse_firmware(void)
 {
     char c;
     ATServer *at;
+    I2CServer *i2c;
     
     EiDeviceVisionAI* dev = static_cast<EiDeviceVisionAI*>(EiDeviceInfo::get_device());
     EiCameraOV2640* cam = static_cast<EiCameraOV2640*>(EiCameraOV2640::get_camera());
 
     hx_drv_timer_init();
     debugger_init();
+    webusb_init();
     external_flash_xip_enable();
     console_uart = hx_drv_uart_get_dev((USE_SS_UART_E)CONSOLE_UART_ID);
 
     dev->set_state(eiStateFinished);
     ei_printf("Edge Impulse firmware for Seeed Studio Grove Vision AI Module\n");
+
+    i2c = ei_i2c_init(dev);
 
     at = ei_at_init(dev);
     at->print_prompt();
@@ -86,6 +94,9 @@ extern "C" int edge_impulse_firmware(void)
         if(is_inference_running() == true) {
             ei_run_impulse();
         }
+
+        // Handle I2C commands
+        i2c->task(nullptr);
     }
 
     return 0;
