@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM --platform=amd64 ubuntu:20.04
 
 WORKDIR /app
 
@@ -15,5 +15,9 @@ RUN mkdir -p /opt/arc_gnu && \
     tar xf himax.arc_gnu_ei_prebuilt_minimal_elf32_le_linux_install.2020.09.tar.gz && \
     rm -rf himax.arc_gnu_ei_prebuilt_minimal_elf32_le_linux_install.2020.09.tar.gz
 
+COPY build-firmware.sh /app/
+
 # Add to PATH
 ENV PATH="${PATH}:/opt/arc_gnu/arc_gnu_ei_prebuilt_minimal_elf32_le_linux_install/bin/"
+
+ENTRYPOINT [ "/app/build-firmware.sh" ]

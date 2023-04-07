@@ -5,8 +5,7 @@ LIB_ARC_MLI_INCDIR	= $(LIB_ARC_MLI_DIR)
 LIB_ARC_MLI_INCDIR += $(LIB_ARC_MLI_DIR)/arc_mli_package/include
 LIB_ARC_MLI_INCDIR += $(LIB_ARC_MLI_DIR)/arc_mli_package/include/api
 
-# APPL_DEFINES += -O3 -DNDEBUG -g -DTF_LITE_STATIC_MEMORY -DEMBARC_TCF_GENERATED -O3 -ffunction-sections -fdata-sections
-APPL_DEFINES += -DNDEBUG -g -DTF_LITE_STATIC_MEMORY -DEMBARC_TCF_GENERATED -O3 -ffunction-sections -fdata-sections
+APPL_DEFINES += -DNDEBUG -g -DTF_LITE_STATIC_MEMORY -DEMBARC_TCF_GENERATED -Os -ffunction-sections -fdata-sections
 APPL_DEFINES += -DSCRATCH_MEM_Z_SIZE=0
 
 LIB_INCDIR += $(LIB_ARC_MLI_INCDIR)

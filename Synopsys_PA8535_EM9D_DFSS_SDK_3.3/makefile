@@ -167,7 +167,7 @@ LIB_NETXDUO_PREBUILT = 1
 #PURE_BOARD_INIT = 1
 
 
-APP_TYPE = edge_impulse_firmware
+APP_TYPE ?= unknown
 
 ##
 #  TFLITE_MICRO_GOOGLE_PERSON

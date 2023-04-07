@@ -1,13 +1,15 @@
-# Seeed Studio Grove Vision AI firmware
+# Seeed Studio Grove Vision AI & SenseCAP A1101 firmware
 
-[Edge Impulse](https://www.edgeimpulse.com) enables developers to create the next generation of intelligent device solutions with embedded Machine Learning. This repository contains the Edge Impulse firmware for the Seeed Studio Grove Vision AI module. This device supports all Edge Impulse features, including ingestion, remote management, and inferencing.
+[Edge Impulse](https://www.edgeimpulse.com) enables developers to create the next generation of intelligent device solutions with embedded Machine Learning. This repository contains the Edge Impulse firmware for the Seeed Studio Grove Vision AI module and for the SenseCAP A1101. This device supports all Edge Impulse features, including ingestion, remote management, and inferencing.
 
-See our [tutorial on how to use the module with Edge Impulse Studio](https://docs.edgeimpulse.com/docs/development-platforms/officially-supported-mcu-targets/seeed-grove-vision-ai)
+See our tutorials on how to use both devices with Edge Impulse Studio
+* [Grove Vision AI Module](https://docs.edgeimpulse.com/docs/development-platforms/officially-supported-mcu-targets/seeed-grove-vision-ai)
+* [SenseCAP A1101](https://docs.edgeimpulse.com/docs/development-platforms/officially-supported-mcu-targets/seeed-sensecap-a1101)
 
 ---
 **NOTE**
 
-If you are using the Grove Vision AI module with Edge Impulse for the first time, upgrade the firmware on the USB-UART BL702 converter.
+If you are using the Grove Vision AI module or SenseCAP A1101 with Edge Impulse for the first time, upgrade the firmware on the USB-UART BL702 converter.
 
 1. Download [the following firmware](https://cdn.edgeimpulse.com/build-system/BL702-firmware-grove-vision-ai.zip) from Edge Impulse CDN server.
 2. Follow [the instruction to flash the BL702 firmware](https://wiki.seeedstudio.com/Grove-Vision-AI-Module/#update-bl702-chip-firmware).
@@ -18,15 +20,17 @@ If you are using the Grove Vision AI module with Edge Impulse for the first time
 
 * You can find the main firmware source code here:
 
-    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_firmware`
+    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_visionai`
+    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_sensecap`
 
 * To build the firmware, use the following makefile:
 
-    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/makefile`
+    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/makefile` and pass `APP_TYPE` (one of: `edge_impulse_visionai` or `edge_impulse_cansecap`)
 
 * If you want to deploy your model (exported as a `C++ Library` from Studio), extract the exported `zip` file content into:
 
-    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_firmware/ei-model`
+    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_visionai/ei-model`
+    `Synopsys_PA8535_EM9D_DFSS_SDK_3.3/app/scenario_app/edge_impulse_sensecap/ei-model`
 
 ### Reporting issues
 
@@ -49,8 +53,9 @@ Another option is a native local build.
 1. Run the build script using
 
     ```sh
-    docker run --rm --interactive -v $PWD:/app seeed-vision-ai-build /bin/bash build-firmware.sh
+    docker run -v $PWD:/app seeed-vision-ai-build edge_impulse_visionai
     ```
+    Or use `edge_impulse_sensecap` as a parameter to build firmware for SenseCAP A1101.
 
 1. You can find the resulting firmware in `firmware.uf2` file.
 
@@ -74,31 +79,38 @@ We tested this build method on Ubuntu 20.04 and Fedora 36.
     export PATH="$HOME/arc_gnu_2020.09_prebuilt_elf32_le_linux_install/bin:$PATH"
     ```
 
-1. Build the firmware and convert it into UF2 format
+1. Build the firmware and convert it into UF2 format. For Grove Vision AI:
 
     ```sh
     cd firmware-seeed-vision-ai-internal/Synopsys_PA8535_EM9D_DFSS_SDK_3.3
-    make
+    APP_TYPE=edge_impulse_visionai make
     make flash
     python3 tools/ufconv/uf2conv.py -t 0 -c tools/image_gen_cstm/output/output.img -o firmware.uf2
     ```
-
+    Or use `APP_TYPE=edge_impulse_sensecap` for SenseCAP A1101.
 
 ## Flashing the board
 
-Below is the procedure to flash the firmware on the Grove - Vision AI Module.
+### Grove Vision AI
 
-1. Connect Grove - Vision AI Module to the host PC via USB Type-C cable 
-1. Double-click the boot button on Grove - Vision AI Module to enter mass storage mode
+1. Connect Grove Vision AI Module to the host PC via USB Type-C cable
+1. Double-click the `BOOT` button on the Grove Vision AI Module to enter mass storage mode
 1. After this, you will see a new storage drive shown on your file explorer as **GROVEAI**
 1. Drag and drop the previous **firmware.uf2** file to GROVEAI drive
 
 Once the copying is finished, **GROVEAI** drive will disappear.
 
+### SenseCAP A1101
+
+1. Connect SenseCAP A1101 to the host PC via USB Type-C cable
+1. Double-click the button next to the USB-C socket to enter mass storage mode
+1. After this, you will see a new storage drive shown on your file explorer as **VISIONAI**
+1. Drag and drop the previous **firmware.uf2** file to VISIONAI drive
+
 ## How to view the camera stream?
 
 1. Install [Edge Impulse CLI](https://docs.edgeimpulse.com/docs/edge-impulse-cli/cli-installation) tools
-1. Connect your board to the PC, open the terminal/command line, and run:
+1. Connect your device to the PC, open the terminal/command line, and run:
 
     ```sh
     edge-impulse-run-impulse --debug

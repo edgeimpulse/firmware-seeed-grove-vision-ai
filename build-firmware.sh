@@ -23,30 +23,19 @@
 
 set -e
 
-for i in "$@"; do
-  case $i in
-    -c|--clean)
-      CLEAN=1
-      shift # past argument
-      ;;
-    *)
-      shift # past argument
-      ;;
-  esac
-done
-
 cd Synopsys_PA8535_EM9D_DFSS_SDK_3.3/
 
-if [ ! -z ${CLEAN} ];
+if [ "${1}" == "clean" ];
 then
     make clean
     if [ $? -ne 0 ]; then
         echo "Clean error"
         exit 1
     fi
+    exit 0
 fi
 
-make
+APP_TYPE="${1}" make
 if [ $? -ne 0 ]; then
     echo "Build error"
     exit 1
