@@ -40,8 +40,6 @@ ei_dsp_config_image_t ei_dsp_config_3 = {
     "Grayscale" // select channels
 };
 
-#define EI_DSP_PARAMS_GENERATED 1
-
 const size_t ei_dsp_blocks_size = 1;
 ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
     { // DSP block 3
@@ -91,11 +89,11 @@ const ei_model_performance_calibration_t ei_calibration = {
 };
 
 
-const ei_impulse_t impulse_39_1 = {
-    .project_id = 39,
-    .project_owner = "Edge Impulse Inc.",
-    .project_name = "Demo: Constrained Object Detection",
-    .deploy_version = 1,
+const ei_impulse_t impulse_1085_2 = {
+    .project_id = 1085,
+    .project_owner = "Edge Impulse Profiling",
+    .project_name = "fomo-96-96-faces-gray",
+    .deploy_version = 2,
 
     .nn_input_frame_size = 9216,
     .raw_sample_count = 9216,
@@ -108,21 +106,21 @@ const ei_impulse_t impulse_39_1 = {
     .frequency = 0,
     .dsp_blocks_size = ei_dsp_blocks_size,
     .dsp_blocks = ei_dsp_blocks,
-
+    
     .object_detection = 1,
     .object_detection_count = 10,
     .object_detection_threshold = 0.5,
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_FOMO,
     .fomo_output_size = 12,
-
+    
     .tflite_output_features_count = 288,
     .learning_blocks_size = ei_learning_blocks_size,
     .learning_blocks = ei_learning_blocks,
 
     .inferencing_engine = EI_CLASSIFIER_TFLITE,
-
+    
     .quantized = 1,
-
+    
     .compiled = 1,
 
     .sensor = EI_CLASSIFIER_SENSOR_CAMERA,
@@ -136,6 +134,6 @@ const ei_impulse_t impulse_39_1 = {
     .categories = ei_classifier_inferencing_categories
 };
 
-const ei_impulse_t ei_default_impulse = impulse_39_1;
+const ei_impulse_t ei_default_impulse = impulse_1085_2;
 
 #endif // _EI_CLASSIFIER_MODEL_METADATA_H_

@@ -210,7 +210,7 @@ EI_IMPULSE_ERROR run_nn_inference(
     ei::matrix_t *fmatrix,
     ei_impulse_result_t *result,
     void *config_ptr,
-    bool debug = false)
+    bool debug = true)
 {
     ei_learning_block_config_tflite_graph_t *block_config = ((ei_learning_block_config_tflite_graph_t*)config_ptr);
     ei_config_tflite_graph_t *graph_config = ((ei_config_tflite_graph_t*)block_config->graph_config);

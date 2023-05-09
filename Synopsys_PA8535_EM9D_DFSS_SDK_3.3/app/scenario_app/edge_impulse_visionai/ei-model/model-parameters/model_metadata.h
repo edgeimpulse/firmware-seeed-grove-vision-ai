@@ -36,6 +36,7 @@
 #define EI_CLASSIFIER_TFLITE_TIDL                8
 #define EI_CLASSIFIER_AKIDA                      9
 #define EI_CLASSIFIER_SYNTIANT                   10
+#define EI_CLASSIFIER_ONNX_TIDL                  11
 
 #define EI_CLASSIFIER_SENSOR_UNKNOWN             -1
 #define EI_CLASSIFIER_SENSOR_MICROPHONE          1
@@ -47,12 +48,13 @@
 
 // These must match the enum values in TensorFlow Lite's "TfLiteType"
 #define EI_CLASSIFIER_DATATYPE_FLOAT32           1
+#define EI_CLASSIFIER_DATATYPE_UINT8             3
 #define EI_CLASSIFIER_DATATYPE_INT8              9
 
-#define EI_CLASSIFIER_PROJECT_ID                 39
-#define EI_CLASSIFIER_PROJECT_OWNER              "Edge Impulse Inc."
-#define EI_CLASSIFIER_PROJECT_NAME               "Demo: Constrained Object Detection"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     1
+#define EI_CLASSIFIER_PROJECT_ID                 1085
+#define EI_CLASSIFIER_PROJECT_OWNER              "Edge Impulse Profiling"
+#define EI_CLASSIFIER_PROJECT_NAME               "FOMO Face detection"
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     2
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        9216
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           9216
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      1
@@ -86,6 +88,7 @@
 #define EI_CLASSIFIER_TFLITE_OUTPUT_QUANTIZED       1
 #define EI_CLASSIFIER_TFLITE_OUTPUT_SCALE           0.00390625
 #define EI_CLASSIFIER_TFLITE_OUTPUT_ZEROPOINT       -128
+
 #define EI_CLASSIFIER_INFERENCING_ENGINE            EI_CLASSIFIER_TFLITE
 #define EI_CLASSIFIER_COMPILED                      1
 #define EI_CLASSIFIER_HAS_TFLITE_OPS_RESOLVER       0
@@ -100,6 +103,9 @@
 #define EI_CLASSIFIER_LOAD_FFT_1024              0
 #define EI_CLASSIFIER_LOAD_FFT_2048              0
 #define EI_CLASSIFIER_LOAD_FFT_4096              0
+
+#define EI_DSP_PARAMS_GENERATED 1
+
 
 #define EI_CLASSIFIER_SENSOR                     EI_CLASSIFIER_SENSOR_CAMERA
 #define EI_CLASSIFIER_FUSION_AXES_STRING         "image"
