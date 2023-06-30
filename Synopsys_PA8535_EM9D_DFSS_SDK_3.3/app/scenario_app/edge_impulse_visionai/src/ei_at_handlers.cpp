@@ -21,6 +21,7 @@
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include "firmware-sdk/at-server/ei_at_command_set.h"
 #include "firmware-sdk/at_base64_lib.h"
+#include "firmware-sdk/ei_fusion.h"
 #include "firmware-sdk/ei_image_lib.h"
 #include "firmware-sdk/ei_device_lib.h"
 #include "inference/ei_run_impulse.h"
@@ -121,7 +122,9 @@ bool at_set_mgmt_url(const char **argv, const int argc)
 bool at_get_sample_settings(void)
 {
     ei_printf("Label:     %s\n", dev->get_sample_label().c_str());
-    ei_printf("Interval:  %.2f ms.\n", dev->get_sample_interval_ms());
+    ei_printf("Interval:  ");
+    ei_printf_float(dev->get_sample_interval_ms());
+    ei_printf(" ms.\n");
     ei_printf("Length:    %lu ms.\n", dev->get_sample_length_ms());
     ei_printf("HMAC key:  %s\n", dev->get_sample_hmac_key().c_str());
 
@@ -150,6 +153,34 @@ bool at_set_sample_settings(const char **argv, const int argc)
     }
 
     ei_printf("OK\n");
+
+    return true;
+}
+
+bool at_sample_start(const char **argv, const int argc)
+{
+    if(argc < 1) {
+        ei_printf("Missing sensor name!\n");
+        return true;
+    }
+
+    const ei_device_sensor_t *sensor_list;
+    size_t sensor_list_size;
+
+    dev->get_sensor_list((const ei_device_sensor_t **)&sensor_list, &sensor_list_size);
+
+    for (size_t ix = 0; ix < sensor_list_size; ix++) {
+        if (strcmp(sensor_list[ix].name, argv[0]) == 0) {
+            if (!sensor_list[ix].start_sampling_cb()) {
+                ei_printf("ERR: Failed to start sampling\n");
+                dev->set_state(eiStateIdle);
+            }
+            else {
+                dev->set_state(eiStateFinished);
+            }
+            return true;
+        }
+    }
 
     return true;
 }
@@ -299,6 +330,19 @@ bool at_get_config(void)
     ei_printf("Data Transfer Baudrate: %lu\n", dev->get_data_output_baudrate());
     ei_printf("\n");
     ei_printf("===== Sensors ======\n");
+    for (size_t ix = 0; ix < sensor_list_size; ix++) {
+        ei_printf("Name: %s, Max sample length: %us, Frequencies: [", sensor_list[ix].name, sensor_list[ix].max_sample_length_s);
+        for (size_t fx = 0; fx < EI_MAX_FREQUENCIES; fx++) {
+            if (sensor_list[ix].frequencies[fx] != 0.0f) {
+                if (fx != 0) {
+                    ei_printf(", ");
+                }
+                ei_printf_float(sensor_list[ix].frequencies[fx]);
+                ei_printf("Hz");
+            }
+        }
+        ei_printf("]\n");
+    }
     ei_printf("\n");
     ei_printf("===== Snapshot ======\n");
     at_get_snapshot();
@@ -326,7 +370,9 @@ bool at_get_config(void)
     ei_printf("\n");
     ei_printf("===== Sampling parameters =====\n");
     ei_printf("Label:     %s\n", dev->get_sample_label().c_str());
-    ei_printf("Interval:  %.2f ms.\n", dev->get_sample_interval_ms());
+    ei_printf("Interval:  ");
+    ei_printf_float(dev->get_sample_interval_ms());
+    ei_printf(" ms.\n");
     ei_printf("Length:    %lu ms.\n", dev->get_sample_length_ms());
     ei_printf("HMAC key:  %s\n", dev->get_sample_hmac_key().c_str());
     ei_printf("\n");
@@ -344,6 +390,50 @@ bool at_get_config(void)
     return true;
 }
 
+bool at_read_buffer(const char **argv, const int argc)
+{
+    if(argc < 2) {
+        ei_printf("Missing argument! Required: " AT_READBUFFER_ARGS "\n");
+        return true;
+    }
+    bool success = true;
+
+    size_t start = (size_t)atoi(argv[0]);
+    size_t length = (size_t)atoi(argv[1]);
+
+    dev->set_state(eiStateUploading);
+
+    bool use_max_baudrate = false;
+    if (argc >= 3 && argv[2][0] == 'y') {
+       use_max_baudrate = true;
+    }
+
+    if (use_max_baudrate) {
+        ei_printf("OK\r\n");
+        dev->set_max_data_output_baudrate();
+        ei_sleep(100);
+    }
+
+    success = read_encode_send_sample_buffer(start, length);
+
+    if (use_max_baudrate) {
+        ei_printf("\r\nOK\r\n");
+        ei_sleep(100);
+        dev->set_default_data_output_baudrate();
+    }
+
+    if (!success) {
+        ei_printf("ERR: Failed to read from buffer\n");
+        dev->set_state(eiStateIdle);
+    }
+    else {
+        ei_printf("\n");
+        dev->set_state(eiStateFinished);
+    }
+
+    return true;
+}
+
 ATServer *ei_at_init(EiDeviceVisionAI *device)
 {
     ATServer *at;
@@ -352,6 +442,8 @@ ATServer *ei_at_init(EiDeviceVisionAI *device)
     at = ATServer::get_instance();
 
     at->register_command(AT_CONFIG, AT_CONFIG_HELP_TEXT, nullptr, at_get_config, nullptr, nullptr);
+    at->register_command(AT_SAMPLESTART, AT_SAMPLESTART_HELP_TEXT, nullptr, nullptr, at_sample_start, AT_SAMPLESTART_ARGS);
+    at->register_command(AT_READBUFFER, AT_READBUFFER_HELP_TEXT, nullptr, nullptr, at_read_buffer, AT_READBUFFER_ARGS);
     at->register_command(AT_MGMTSETTINGS, AT_MGMTSETTINGS_HELP_TEXT, nullptr, at_get_mgmt_url, at_set_mgmt_url, AT_MGMTSETTINGS_ARGS);
     at->register_command(AT_CLEARCONFIG, AT_CLEARCONFIG_HELP_TEXT, at_clear_config, nullptr, nullptr, nullptr);
     at->register_command(AT_DEVICEID, AT_DEVICEID_HELP_TEXT, nullptr, at_get_device_id, at_set_device_id, AT_DEVICEID_ARGS);
@@ -362,6 +454,7 @@ ATServer *ei_at_init(EiDeviceVisionAI *device)
     at->register_command(AT_RUNIMPULSE, AT_RUNIMPULSE_HELP_TEXT, at_run_impulse, nullptr, nullptr, nullptr);
     at->register_command(AT_RUNIMPULSEDEBUG, AT_RUNIMPULSEDEBUG_HELP_TEXT, nullptr, nullptr, at_run_impulse_debug, AT_RUNIMPULSEDEBUG_ARGS);
     at->register_command(AT_RUNIMPULSECONT, AT_RUNIMPULSECONT_HELP_TEXT, at_run_impulse_cont, nullptr, nullptr, nullptr);
+    // at->register_command(AT_RUNIMPULSESTATIC, AT_RUNIMPULSESTATIC_HELP_TEXT, nullptr, nullptr, at_run_impulse_static_data, AT_RUNIMPULSESTATIC_ARGS);
     at->register_command(AT_SNAPSHOT, AT_SNAPSHOT_HELP_TEXT, nullptr, at_get_snapshot, at_take_snapshot, AT_SNAPSHOT_ARGS);
     at->register_command(AT_SNAPSHOTSTREAM, AT_SNAPSHOTSTREAM_HELP_TEXT, nullptr, nullptr, at_snapshot_stream, AT_SNAPSHOTSTREAM_ARGS);
     at->register_command("STOPIMPULSE", "", at_stop_impulse, nullptr, nullptr, nullptr);

@@ -15,7 +15,7 @@ APPL ?= WEI_FW
 
 # Optimization Level
 # Please Refer to toolchain_xxx.mk for this option
-OLEVEL ?= O2
+OLEVEL ?= Os
 
 ##
 # Current Board And Core

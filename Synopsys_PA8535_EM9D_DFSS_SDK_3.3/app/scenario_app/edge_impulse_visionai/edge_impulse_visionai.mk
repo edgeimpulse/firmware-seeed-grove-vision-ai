@@ -16,9 +16,12 @@ APPL_DEFINES += -DCIS_OV_SENSOR -DCIS_OV2640_BAYER
 LIB_SEL += arc_mli
 LIB_SEL += sensordp pwrmgmt
 LIB_SEL += i2c_comm
+LIB_SEL += audio
 
+# 100 kB
 STACKSZ = 102400
-HEAPSZ = 262144
+# 512 kB
+HEAPSZ = 524288
 
 USER_LINKER_SCRIPT_FILE = $(SCENARIO_APP_ROOT)/edge_impulse_visionai/edge_impulse_visionai.ld
 
@@ -30,6 +33,7 @@ SCENARIO_APP_SUPPORT_LIST +=	edge_impulse_visionai/configs \
 								edge_impulse_visionai/drivers/webusb \
 								edge_impulse_visionai/drivers/sensor \
 								edge_impulse_visionai/drivers/sensor/camera \
+								edge_impulse_visionai/drivers/sensor/imu \
 								edge_impulse_visionai/firmware-sdk \
 								edge_impulse_visionai/firmware-sdk/at-server \
 								edge_impulse_visionai/firmware-sdk/i2c-server \
@@ -53,5 +57,14 @@ SCENARIO_APP_SUPPORT_LIST +=	edge_impulse_visionai/configs \
 								edge_impulse_visionai/ei-model/edge-impulse-sdk/tensorflow/lite/kernels \
 								edge_impulse_visionai/ei-model/edge-impulse-sdk/tensorflow/lite/micro/kernels/arc_mli \
 								edge_impulse_visionai/inference \
+								edge_impulse_visionai/libs \
+								edge_impulse_visionai/libs/mbedtls_hmac_sha256_sw \
+								edge_impulse_visionai/libs/mbedtls_hmac_sha256_sw/mbedtls \
+								edge_impulse_visionai/libs/mbedtls_hmac_sha256_sw/mbedtls/src \
+								edge_impulse_visionai/libs/QCBOR/inc \
+								edge_impulse_visionai/libs/QCBOR/src \
+								edge_impulse_visionai/libs/sensor_aq_mbedtls \
+								edge_impulse_visionai/sensors \
 								edge_impulse_visionai/src \
+								edge_impulse_visionai \
 

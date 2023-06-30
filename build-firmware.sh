@@ -35,7 +35,7 @@ then
     exit 0
 fi
 
-APP_TYPE="${1}" make
+APP_TYPE="${1}" make -j `nproc`
 if [ $? -ne 0 ]; then
     echo "Build error"
     exit 1

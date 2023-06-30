@@ -19,8 +19,11 @@
 #include <cstdio>
 #include <cstdint>
 #include "ei_device_vision_ai.h"
+#include "ei_ram_memory.h"
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include "firmware-sdk/ei_device_memory.h"
+#include "ei_microphone.h"
+#include "ei_accelerometer.h"
 
 using namespace std;
 
@@ -36,6 +39,19 @@ EiDeviceVisionAI::EiDeviceVisionAI(EiDeviceMemory* mem)
 
     cam = static_cast<EiCameraOV2640*>(EiCameraOV2640::get_camera());
     camera_present = cam->is_camera_present();
+
+    standalone_sensor_list[0].name = "Microphone";
+    standalone_sensor_list[0].frequencies[0] = 16000.0f;
+    standalone_sensor_list[0].start_sampling_cb = &ei_microphone_sample_start;
+    standalone_sensor_list[0].max_sample_length_s = mem->get_available_sample_bytes() / (16000 * sizeof(microphone_sample_t));
+
+    standalone_sensor_list[1].name = "Accelerometer";
+    standalone_sensor_list[1].frequencies[0] = 50.0f;
+    standalone_sensor_list[1].frequencies[1] = 62.5f;
+    standalone_sensor_list[1].frequencies[2] = 100.0f;
+    standalone_sensor_list[1].start_sampling_cb = &ei_accel_setup_data_sampling;
+    standalone_sensor_list[1].max_sample_length_s = mem->get_available_sample_bytes() / (100 * SIZEOF_N_AXIS_SAMPLED);
+
 }
 
 EiDeviceVisionAI::~EiDeviceVisionAI()
@@ -81,7 +97,7 @@ void EiDeviceVisionAI::init_device_id(void)
 EiDeviceInfo* EiDeviceInfo::get_device(void)
 {
     //TODO: memory is not required for camera only
-    static EiDeviceRAM<512,2> memory(512);
+    static EiRamMemory memory(sizeof(EiConfig));
     static EiDeviceVisionAI dev(&memory);
 
     return &dev;

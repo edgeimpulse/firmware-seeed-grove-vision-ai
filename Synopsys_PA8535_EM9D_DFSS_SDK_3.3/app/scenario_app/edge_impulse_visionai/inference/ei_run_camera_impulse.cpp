@@ -196,12 +196,15 @@ void ei_run_impulse(void)
 #else
     for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
     {
-        ei_printf("    %s: %.5f\n", result.classification[ix].label,
-                  result.classification[ix].value);
+        ei_printf("    %s: ", result.classification[ix].label);
+        ei_printf_float(result.classification[ix].value);
+        ei_printf("\n");
     }
 
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
-    ei_printf("    anomaly score: %.3f\n", result.anomaly);
+    ei_printf("    anomaly score: ");
+    ei_print_float(result.anomaly);
+    ei_printf("\n");
 #endif
 #endif
 
@@ -275,13 +278,13 @@ bool is_inference_running(void)
     return (state != INFERENCE_STOPPED);
 }
 
-uint16_t ei_get_det_result_len()
+uint16_t ei_get_det_result_len(void)
 {
 
     return std::distance(l_obj_det.begin(), l_obj_det.end());
 }
 
-uint16_t ei_get_cnt_result_len()
+uint16_t ei_get_cnt_result_len(void)
 {
 
     return std::distance(l_obj_det.begin(), l_obj_det.end());

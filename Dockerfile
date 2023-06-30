@@ -6,7 +6,7 @@ RUN apt update && \
     apt install -y wget build-essential && \
     apt install -y python3-numpy python3-pip
 
-RUN pip install requests
+RUN pip install requests colorama pyserial
 
 # Grab toolchain
 RUN mkdir -p /opt/arc_gnu && \

@@ -45,7 +45,7 @@ Another option is a native local build.
 
 1. Make sure you have [Docker](https://www.docker.com/products/docker-desktop) installed.
 1. Build the container:
-   
+
     ```sh
     docker build -t seeed-vision-ai-build .
     ```
@@ -58,6 +58,16 @@ Another option is a native local build.
     Or use `edge_impulse_sensecap` as a parameter to build firmware for SenseCAP A1101.
 
 1. You can find the resulting firmware in `firmware.uf2` file.
+
+---
+**NOTE**
+If you build the firmware once and then swap the ML model, do a clean rebuild
+
+```sh
+docker run -v $PWD:/app seeed-vision-ai-build clean
+docker run -v $PWD:/app seeed-vision-ai-build edge_impulse_visionai
+```
+---
 
 ### Build using native tools
 
@@ -116,7 +126,7 @@ Once the copying is finished, **GROVEAI** drive will disappear.
     edge-impulse-run-impulse --debug
     ```
 
-1. You should see an output similar to the one below. Open the link 
+1. You should see an output similar to the one below. Open the link
 
     ```
     Edge Impulse impulse runner v1.15.1

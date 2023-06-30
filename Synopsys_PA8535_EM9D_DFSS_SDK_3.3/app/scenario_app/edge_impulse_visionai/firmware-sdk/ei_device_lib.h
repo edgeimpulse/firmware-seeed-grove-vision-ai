@@ -20,9 +20,10 @@
 
 #include <cstdint>
 #include <cstddef>
+#include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 
 /**
- * @brief      Call this function periocally during inference to 
+ * @brief      Call this function periocally during inference to
  *             detect a user stop command
  *
  * @return     true if user requested stop
@@ -32,11 +33,16 @@ bool ei_user_invoke_stop_lib(void);
 /**
  * @brief Helper function for sending a data from memory over the
  * serial port. Data are encoded into base64 on the fly.
- * 
+ *
  * @param address address of samples
  * @param length number of samples (bytes)
  * @return true if eferything went fin
  * @return false if some error occured (error during samples read)
  */
 bool read_encode_send_sample_buffer(size_t address, size_t length);
+
+bool run_impulse_static_data(bool debug, size_t length, size_t buf_len);
+
+EI_IMPULSE_ERROR ei_start_impulse_static_data(bool debug, float* data, size_t size);
+
 #endif /* EI_DEVICE_LIB_H */

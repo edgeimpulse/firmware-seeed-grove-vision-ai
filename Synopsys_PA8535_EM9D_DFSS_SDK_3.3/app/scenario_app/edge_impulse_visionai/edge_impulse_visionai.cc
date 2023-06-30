@@ -45,6 +45,8 @@ extern "C" {
 #include "ei_at_handlers.h"
 #include "ei_i2c_handlers.h"
 #include "ei_run_impulse.h"
+#include "ei_microphone.h"
+#include "ei_accelerometer.h"
 
 static DEV_UART *console_uart;
 
@@ -61,6 +63,8 @@ extern "C" int edge_impulse_visionai(void)
     debugger_init();
     webusb_init();
     external_flash_xip_enable();
+    ei_microphone_init();
+    ei_accel_init();
     console_uart = hx_drv_uart_get_dev((USE_SS_UART_E)CONSOLE_UART_ID);
 
     dev->set_state(eiStateFinished);

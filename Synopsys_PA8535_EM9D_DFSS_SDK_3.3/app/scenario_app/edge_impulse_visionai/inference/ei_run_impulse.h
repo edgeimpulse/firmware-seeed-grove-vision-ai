@@ -42,14 +42,14 @@ typedef struct
 } object_counting_t;
 
 void ei_start_impulse(bool continuous, bool debug, bool use_max_uart_speed, float confidence);
-void ei_run_impulse();
+void ei_run_impulse(void);
 void ei_stop_impulse(void);
 bool is_inference_running(void);
 
-uint16_t ei_get_det_result_len();
+uint16_t ei_get_det_result_len(void);
 void ei_get_det_result_data(uint16_t index, void *obj);
 
-uint16_t ei_get_cnt_result_len();
+uint16_t ei_get_cnt_result_len(void);
 void ei_get_cnt_result_data(uint16_t index, void *obj);
 
 #ifdef __cplusplus

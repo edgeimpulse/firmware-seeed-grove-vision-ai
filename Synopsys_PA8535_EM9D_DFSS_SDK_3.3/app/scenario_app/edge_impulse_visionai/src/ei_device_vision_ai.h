@@ -27,7 +27,7 @@ private:
     EiDeviceVisionAI() = delete;
     std::string mac_address = "00:11:22:33:44:55:66";
     EiState state;
-    static const int standalone_sensor_num = 0;
+    static const int standalone_sensor_num = 2;
     ei_device_sensor_t standalone_sensor_list[standalone_sensor_num];
     bool camera_present;
     EiCameraOV2640 *cam;

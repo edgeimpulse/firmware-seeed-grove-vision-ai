@@ -46,11 +46,14 @@
 */
 
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 /* Function prototypes ----------------------------------------------------- */
 void base64_encode(const char *input, size_t input_size, void (*putc_f)(char));
 void base64_encode_chunk(const char *input, size_t input_size, void (*putc_f)(char));
 void base64_encode_finish(void (*putc_f)(char));
 int base64_encode_buffer(const char *input, size_t input_size, char *output, size_t output_size);
+std::vector<unsigned char> base64_decode(std::string const&);
 
 #endif /* EI_AT_BASE64_LIB_H */
