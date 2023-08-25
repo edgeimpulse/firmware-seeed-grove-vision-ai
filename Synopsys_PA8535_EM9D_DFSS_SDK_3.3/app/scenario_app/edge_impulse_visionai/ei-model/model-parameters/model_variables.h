@@ -68,6 +68,8 @@ const ei_learning_block_config_tflite_graph_t ei_learning_block_config_0 = {
     .output_data_tensor = 0,
     .output_labels_tensor = 1,
     .output_score_tensor = 2,
+    .quantized = 1,
+    .compiled = 1,
     .graph_config = (void*)&ei_config_tflite_graph_0
 };
 
@@ -106,22 +108,18 @@ const ei_impulse_t impulse_1085_2 = {
     .frequency = 0,
     .dsp_blocks_size = ei_dsp_blocks_size,
     .dsp_blocks = ei_dsp_blocks,
-    
+
     .object_detection = 1,
     .object_detection_count = 10,
     .object_detection_threshold = 0.5,
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_FOMO,
     .fomo_output_size = 12,
-    
+
     .tflite_output_features_count = 288,
     .learning_blocks_size = ei_learning_blocks_size,
     .learning_blocks = ei_learning_blocks,
 
     .inferencing_engine = EI_CLASSIFIER_TFLITE,
-    
-    .quantized = 1,
-    
-    .compiled = 1,
 
     .sensor = EI_CLASSIFIER_SENSOR_CAMERA,
     .fusion_string = "image",
