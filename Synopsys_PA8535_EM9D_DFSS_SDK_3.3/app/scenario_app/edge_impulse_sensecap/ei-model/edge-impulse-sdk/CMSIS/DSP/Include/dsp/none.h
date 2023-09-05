@@ -59,7 +59,7 @@ MSVC is not going to be used to cross-compile to ARM. So, having a MSVC
 compiler file in Core or Core_A would not make sense.
 
 */
-#if defined ( _MSC_VER ) || defined(__GNUC_PYTHON__)
+#if defined ( _MSC_VER ) || defined(__GNUC_PYTHON__) || defined(__APPLE_CC__)
     __STATIC_FORCEINLINE uint8_t __CLZ(uint32_t data)
     {
       if (data == 0U) { return 32U; }
@@ -215,6 +215,7 @@ __STATIC_FORCEINLINE uint32_t __ROR(uint32_t op1, uint32_t op2)
   #define __PKHTB(ARG1, ARG2, ARG3) ( (((int32_t)(ARG1) <<    0) & (int32_t)0xFFFF0000) | \
                                       (((int32_t)(ARG2) >> ARG3) & (int32_t)0x0000FFFF)  )
 
+  #define __SXTAB16_RORn(ARG1, ARG2, ARG3) __SXTAB16(ARG1, __ROR(ARG2, ARG3))
 
   /*
    * @brief C custom defined SADD16 (by Edge Impulse)

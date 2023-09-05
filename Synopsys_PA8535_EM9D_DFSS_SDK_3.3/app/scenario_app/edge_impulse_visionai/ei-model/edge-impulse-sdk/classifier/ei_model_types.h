@@ -22,7 +22,7 @@
 
 #include "edge-impulse-sdk/classifier/ei_classifier_types.h"
 #include "edge-impulse-sdk/dsp/numpy.hpp"
-#if EI_CLASSIFIER_USE_FULL_TFLITE
+#if EI_CLASSIFIER_USE_FULL_TFLITE || (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_AKIDA)
 #include "tensorflow-lite/tensorflow/lite/c/common.h"
 #else
 #include "edge-impulse-sdk/tensorflow/lite/c/common.h"

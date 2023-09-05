@@ -25,44 +25,43 @@
 #include <stdint.h>
 #include "model_metadata.h"
 
-#include "tflite-model/trained_model_compiled.h"
+#include "tflite-model/tflite_learn_33_compiled.h"
 #include "edge-impulse-sdk/classifier/ei_model_types.h"
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
 
 const char* ei_classifier_inferencing_categories[] = { "face" };
 
-uint8_t ei_dsp_config_3_axes[] = { 0 };
-const uint32_t ei_dsp_config_3_axes_size = 1;
-ei_dsp_config_image_t ei_dsp_config_3 = {
-    3, // uint32_t blockId
+uint8_t ei_dsp_config_32_axes[] = { 0 };
+const uint32_t ei_dsp_config_32_axes_size = 1;
+ei_dsp_config_image_t ei_dsp_config_32 = {
+    32, // uint32_t blockId
     1, // int implementationVersion
     1, // int length of axes
-    "Grayscale" // select channels
+    "RGB" // select channels
 };
 
 const size_t ei_dsp_blocks_size = 1;
 ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
-    { // DSP block 3
-        9216,
+    { // DSP block 32
+        27648,
         &extract_image_features,
-        (void*)&ei_dsp_config_3,
-        ei_dsp_config_3_axes,
-        ei_dsp_config_3_axes_size
+        (void*)&ei_dsp_config_32,
+        ei_dsp_config_32_axes,
+        ei_dsp_config_32_axes_size
     }
 };
-
-const ei_config_tflite_eon_graph_t ei_config_tflite_graph_0 = {
+const ei_config_tflite_eon_graph_t ei_config_tflite_graph_33 = {
     .implementation_version = 1,
-    .model_init = &trained_model_init,
-    .model_invoke = &trained_model_invoke,
-    .model_reset = &trained_model_reset,
-    .model_input = &trained_model_input,
-    .model_output = &trained_model_output,
+    .model_init = &tflite_learn_33_init,
+    .model_invoke = &tflite_learn_33_invoke,
+    .model_reset = &tflite_learn_33_reset,
+    .model_input = &tflite_learn_33_input,
+    .model_output = &tflite_learn_33_output,
 };
 
-const ei_learning_block_config_tflite_graph_t ei_learning_block_config_0 = {
+const ei_learning_block_config_tflite_graph_t ei_learning_block_config_33 = {
     .implementation_version = 1,
-    .block_id = 0,
+    .block_id = 33,
     .object_detection = 1,
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_FOMO,
     .output_data_tensor = 0,
@@ -70,14 +69,15 @@ const ei_learning_block_config_tflite_graph_t ei_learning_block_config_0 = {
     .output_score_tensor = 2,
     .quantized = 1,
     .compiled = 1,
-    .graph_config = (void*)&ei_config_tflite_graph_0
+    .graph_config = (void*)&ei_config_tflite_graph_33
 };
 
 const size_t ei_learning_blocks_size = 1;
 const ei_learning_block_t ei_learning_blocks[ei_learning_blocks_size] = {
     {
         &run_nn_inference,
-        (void*)&ei_learning_block_config_0,
+        (void*)&ei_learning_block_config_33,
+        EI_CLASSIFIER_IMAGE_SCALING_NONE,
     },
 };
 
@@ -90,14 +90,13 @@ const ei_model_performance_calibration_t ei_calibration = {
     0   /* Don't use flags */
 };
 
-
-const ei_impulse_t impulse_1085_2 = {
-    .project_id = 1085,
+const ei_impulse_t impulse_55_1 = {
+    .project_id = 55,
     .project_owner = "Edge Impulse Profiling",
-    .project_name = "fomo-96-96-faces-gray",
-    .deploy_version = 2,
+    .project_name = "Demo: Constrained Object Detection",
+    .deploy_version = 1,
 
-    .nn_input_frame_size = 9216,
+    .nn_input_frame_size = 27648,
     .raw_sample_count = 9216,
     .raw_samples_per_frame = 1,
     .dsp_input_frame_size = 9216 * 1,
@@ -108,13 +107,13 @@ const ei_impulse_t impulse_1085_2 = {
     .frequency = 0,
     .dsp_blocks_size = ei_dsp_blocks_size,
     .dsp_blocks = ei_dsp_blocks,
-
+    
     .object_detection = 1,
     .object_detection_count = 10,
-    .object_detection_threshold = 0.5,
+    .object_detection_threshold = 0.55,
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_FOMO,
     .fomo_output_size = 12,
-
+    
     .tflite_output_features_count = 288,
     .learning_blocks_size = ei_learning_blocks_size,
     .learning_blocks = ei_learning_blocks,
@@ -132,6 +131,6 @@ const ei_impulse_t impulse_1085_2 = {
     .categories = ei_classifier_inferencing_categories
 };
 
-const ei_impulse_t ei_default_impulse = impulse_1085_2;
+const ei_impulse_t ei_default_impulse = impulse_55_1;
 
 #endif // _EI_CLASSIFIER_MODEL_METADATA_H_

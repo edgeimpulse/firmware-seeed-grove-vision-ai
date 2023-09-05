@@ -14,3 +14,4 @@ Synopsys_PA8535_EM9D_DFSS_SDK_3.3/tools/image_gen_cstm/odm_key/we1_root_rsa_key.
 
 obj_socket_24/
 *.uf2
+copy-sdk.sh

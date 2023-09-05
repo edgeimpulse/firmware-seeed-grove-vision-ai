@@ -63,10 +63,6 @@
 
 #include "model-parameters/model_variables.h"
 
-#if ECM3532
-void*   __dso_handle = (void*) &__dso_handle;
-#endif
-
 #ifdef __cplusplus
 namespace {
 #endif // __cplusplus
