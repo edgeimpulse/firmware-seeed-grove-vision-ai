@@ -67,17 +67,6 @@
 void*   __dso_handle = (void*) &__dso_handle;
 #endif
 
-// EI_CLASSIFIER_CALIBRATION_ENABLED needs to be added to new
-// model metadata, since we are getting rid of macro for sensors
-// (multiple impulses means we can have multiple sensors)
-// for now we just enable it if EI_CLASSIFIER_SENSOR is present and
-// is microphone (performance calibration only works for mic).
-#if defined(EI_CLASSIFIER_SENSOR) && (EI_CLASSIFIER_SENSOR == EI_CLASSIFIER_SENSOR_MICROPHONE)
-#define EI_CLASSIFIER_CALIBRATION_ENABLED 1
-#else
-#define EI_CLASSIFIER_CALIBRATION_ENABLED 0
-#endif
-
 #ifdef __cplusplus
 namespace {
 #endif // __cplusplus
@@ -96,6 +85,50 @@ static RecognizeEvents *avg_scores = NULL;
 
 /* These functions (up to Public functions section) are not exposed to end-user,
 therefore changes are allowed. */
+
+#if EI_CLASSIFIER_LOAD_IMAGE_SCALING
+static const float torch_mean[] = { 0.485, 0.456, 0.406 };
+static const float torch_std[] = { 0.229, 0.224, 0.225 };
+
+static EI_IMPULSE_ERROR scale_fmatrix(ei_learning_block_t *block, ei::matrix_t *fmatrix) {
+    if (block->image_scaling == EI_CLASSIFIER_IMAGE_SCALING_TORCH) {
+        // @todo; could we write some faster vector math here?
+        for (size_t ix = 0; ix < fmatrix->rows * fmatrix->cols; ix += 3) {
+            fmatrix->buffer[ix + 0] = (fmatrix->buffer[ix + 0] - torch_mean[0]) / torch_std[0];
+            fmatrix->buffer[ix + 1] = (fmatrix->buffer[ix + 1] - torch_mean[1]) / torch_std[1];
+            fmatrix->buffer[ix + 2] = (fmatrix->buffer[ix + 2] - torch_mean[2]) / torch_std[2];
+        }
+    }
+    else if (block->image_scaling == EI_CLASSIFIER_IMAGE_SCALING_0_255) {
+        int scale_res = numpy::scale(fmatrix, 255.0f);
+        if (scale_res != EIDSP_OK) {
+            ei_printf("ERR: Failed to scale matrix (%d)\n", scale_res);
+            return EI_IMPULSE_DSP_ERROR;
+        }
+    }
+
+    return EI_IMPULSE_OK;
+}
+
+static EI_IMPULSE_ERROR unscale_fmatrix(ei_learning_block_t *block, ei::matrix_t *fmatrix) {
+    if (block->image_scaling == EI_CLASSIFIER_IMAGE_SCALING_TORCH) {
+        // @todo; could we write some faster vector math here?
+        for (size_t ix = 0; ix < fmatrix->rows * fmatrix->cols; ix += 3) {
+            fmatrix->buffer[ix + 0] = (fmatrix->buffer[ix + 0] * torch_std[0]) + torch_mean[0];
+            fmatrix->buffer[ix + 1] = (fmatrix->buffer[ix + 1] * torch_std[1]) + torch_mean[1];
+            fmatrix->buffer[ix + 2] = (fmatrix->buffer[ix + 2] * torch_std[2]) + torch_mean[2];
+        }
+    }
+    else if (block->image_scaling == EI_CLASSIFIER_IMAGE_SCALING_0_255) {
+        int scale_res = numpy::scale(fmatrix, 1 / 255.0f);
+        if (scale_res != EIDSP_OK) {
+            ei_printf("ERR: Failed to scale matrix (%d)\n", scale_res);
+            return EI_IMPULSE_DSP_ERROR;
+        }
+    }
+    return EI_IMPULSE_OK;
+}
+#endif
 
 /**
  * @brief      Do inferencing over the processed feature matrix
@@ -116,10 +149,25 @@ extern "C" EI_IMPULSE_ERROR run_inference(
     for (size_t ix = 0; ix < impulse->learning_blocks_size; ix++) {
         ei_learning_block_t block = impulse->learning_blocks[ix];
 
+#if EI_CLASSIFIER_LOAD_IMAGE_SCALING
+        EI_IMPULSE_ERROR scale_res = scale_fmatrix(&block, fmatrix);
+        if (scale_res != EI_IMPULSE_OK) {
+            return scale_res;
+        }
+#endif
+
         EI_IMPULSE_ERROR res = block.infer_fn(impulse, fmatrix, result, block.config, debug);
         if (res != EI_IMPULSE_OK) {
             return res;
         }
+
+#if EI_CLASSIFIER_LOAD_IMAGE_SCALING
+        // undo scaling
+        scale_res = unscale_fmatrix(&block, fmatrix);
+        if (scale_res != EI_IMPULSE_OK) {
+            return scale_res;
+        }
+#endif
     }
 
     if (ei_run_impulse_check_canceled() == EI_IMPULSE_CANCELED) {
@@ -145,7 +193,7 @@ extern "C" EI_IMPULSE_ERROR process_impulse(const ei_impulse_t *impulse,
                                             bool debug = false)
 {
 
-#if (EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_ONNX_TIDL)) || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI
+#if (EI_CLASSIFIER_QUANTIZATION_ENABLED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_ONNX_TIDL)) || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI
     // Shortcut for quantized image models
     ei_learning_block_t block = impulse->learning_blocks[0];
     if (can_run_classifier_image_quantized(impulse, block) == EI_IMPULSE_OK) {
@@ -423,8 +471,9 @@ __attribute__((unused)) static EI_IMPULSE_ERROR can_run_classifier_image_quantiz
         return EI_IMPULSE_ONLY_SUPPORTED_FOR_IMAGES;
     }
 
-        // Check if we have a quantized NN Input layer (input is always quantized for DRP-AI)
-    if (impulse->quantized != 1) {
+    // Check if we have a quantized NN Input layer (input is always quantized for DRP-AI)
+    ei_learning_block_config_tflite_graph_t *block_config = (ei_learning_block_config_tflite_graph_t*)block_ptr.config;
+    if (block_config->quantized != 1) {
         return EI_IMPULSE_ONLY_SUPPORTED_FOR_IMAGES;
     }
 
@@ -436,10 +485,10 @@ __attribute__((unused)) static EI_IMPULSE_ERROR can_run_classifier_image_quantiz
     return EI_IMPULSE_OK;
 }
 
-#if EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_ONNX_TIDL)
+#if EI_CLASSIFIER_QUANTIZATION_ENABLED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_ONNX_TIDL)
 
 /**
- * Special function to run the classifier on images, only works on TFLite models (either interpreter, EON, tensaiflow, drpai or tidl)
+ * Special function to run the classifier on images, only works on TFLite models (either interpreter, EON, tensaiflow, drpai, tidl, memryx)
  * that allocates a lot less memory by quantizing in place. This only works if 'can_run_classifier_image_quantized'
  * returns EI_IMPULSE_OK.
  */
@@ -449,14 +498,12 @@ extern "C" EI_IMPULSE_ERROR run_classifier_image_quantized(
     ei_impulse_result_t *result,
     bool debug = false)
 {
-
     memset(result, 0, sizeof(ei_impulse_result_t));
 
     return run_nn_inference_image_quantized(impulse, signal, result, impulse->learning_blocks[0].config, debug);
-
 }
 
-#endif // #if EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI)
+#endif // #if EI_CLASSIFIER_QUANTIZATION_ENABLED == 1 && (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TFLITE || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_TENSAIFLOW || EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_DRPAI)
 
 /* Public functions ------------------------------------------------------- */
 

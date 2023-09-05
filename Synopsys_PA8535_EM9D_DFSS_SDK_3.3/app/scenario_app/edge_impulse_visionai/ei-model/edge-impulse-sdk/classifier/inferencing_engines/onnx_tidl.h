@@ -559,7 +559,7 @@ EI_IMPULSE_ERROR run_nn_inference(
     return EI_IMPULSE_OK;
 }
 
-#if EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1
+#if EI_CLASSIFIER_QUANTIZATION_ENABLED == 1
 /**
  * Special function to run the classifier on images, only works on TFLite models (either interpreter or EON or for tensaiflow)
  * that allocates a lot less memory by quantizing in place. This only works if 'can_run_classifier_image_quantized'
@@ -569,6 +569,7 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
     const ei_impulse_t *impulse,
     signal_t *signal,
     ei_impulse_result_t *result,
+    void *config_ptr,
     bool debug = false)
 {
     static std::vector<Ort::Value> input_tensors;
@@ -605,7 +606,8 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
     ei::matrix_i8_t a_features_matrix(1, impulse->nn_input_frame_size);
 
     // run DSP process and quantize automatically
-    int ret = extract_image_features_quantized(impulse, signal, &a_features_matrix, impulse->dsp_blocks[0].config, impulse->frequency);
+    int ret = extract_image_features_quantized(impulse, signal, &a_features_matrix, impulse->dsp_blocks[0].config, impulse->frequency,
+        impulse->learning_blocks[0].image_scaling);
     if (ret != EIDSP_OK) {
         ei_printf("ERR: Failed to run DSP process (%d)\n", ret);
         return EI_IMPULSE_DSP_ERROR;
@@ -685,7 +687,7 @@ EI_IMPULSE_ERROR run_nn_inference_image_quantized(
 
     return EI_IMPULSE_OK;
 }
-#endif // EI_CLASSIFIER_TFLITE_INPUT_QUANTIZED == 1
+#endif // EI_CLASSIFIER_QUANTIZATION_ENABLED == 1
 
 #endif // #if (EI_CLASSIFIER_INFERENCING_ENGINE == EI_CLASSIFIER_ONNX_TIDL) && (EI_CLASSIFIER_COMPILED != 1)
 #endif // _EI_CLASSIFIER_INFERENCING_ENGINE_ONNX_TIDL_H_

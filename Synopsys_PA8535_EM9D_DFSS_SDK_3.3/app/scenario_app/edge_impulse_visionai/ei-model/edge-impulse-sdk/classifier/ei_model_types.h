@@ -62,6 +62,10 @@
 #define EI_CLASSIFIER_LAST_LAYER_YOLOV5_V5_DRPAI       5
 #define EI_CLASSIFIER_LAST_LAYER_YOLOV7                6
 
+#define EI_CLASSIFIER_IMAGE_SCALING_NONE          0
+#define EI_CLASSIFIER_IMAGE_SCALING_0_255         1
+#define EI_CLASSIFIER_IMAGE_SCALING_TORCH         2
+
 struct ei_impulse;
 
 typedef struct {
@@ -89,6 +93,7 @@ typedef struct {
 typedef struct {
     EI_IMPULSE_ERROR (*infer_fn)(const ei_impulse *impulse, ei::matrix_t *fmatrix, ei_impulse_result_t *result, void *config, bool debug);
     void *config;
+    int image_scaling;
 } ei_learning_block_t;
 
 typedef struct {
@@ -128,6 +133,9 @@ typedef struct {
     uint8_t output_data_tensor;
     uint8_t output_labels_tensor;
     uint8_t output_score_tensor;
+    /* tflite graph params */
+    bool quantized;
+    bool compiled;
     /* tflite graph config pointer */
     void *graph_config;
 } ei_learning_block_config_tflite_graph_t;
@@ -183,8 +191,6 @@ typedef struct ei_impulse {
 
     /* inference parameters */
     uint32_t inferencing_engine;
-    bool quantized;
-    bool compiled;
 
     /* sensors and on-device inference */
     uint32_t sensor;
