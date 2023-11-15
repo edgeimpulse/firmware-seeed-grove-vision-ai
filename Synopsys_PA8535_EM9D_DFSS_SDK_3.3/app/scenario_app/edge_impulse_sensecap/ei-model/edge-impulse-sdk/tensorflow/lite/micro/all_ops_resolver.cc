@@ -125,7 +125,7 @@ AllOpsResolver::AllOpsResolver() {
   AddTranspose();
   AddTransposeConv();
   AddTreeEnsembleClassifier();
-  AddUnidirectionalSequenceLSTM();
+  AddUnidirectionalSequenceLstm();
   AddUnpack();
   AddVarHandle();
   AddWhile();

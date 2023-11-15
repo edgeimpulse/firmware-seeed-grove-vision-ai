@@ -102,6 +102,18 @@ static EI_IMPULSE_ERROR scale_fmatrix(ei_learning_block_t *block, ei::matrix_t *
             return EI_IMPULSE_DSP_ERROR;
         }
     }
+    else if (block->image_scaling == EI_CLASSIFIER_IMAGE_SCALING_MIN1_1) {
+        int scale_res = numpy::scale(fmatrix, 2.0f);
+        if (scale_res != EIDSP_OK) {
+            ei_printf("ERR: Failed to scale matrix (%d)\n", scale_res);
+            return EI_IMPULSE_DSP_ERROR;
+        }
+        scale_res = numpy::subtract(fmatrix, 1.0f);
+        if (scale_res != EIDSP_OK) {
+            ei_printf("ERR: Failed to scale matrix (%d)\n", scale_res);
+            return EI_IMPULSE_DSP_ERROR;
+        }
+    }
 
     return EI_IMPULSE_OK;
 }

@@ -57,7 +57,7 @@
 
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include "edge-impulse-sdk/classifier/ei_fill_result_struct.h"
-#include "edge-impulse-sdk/tensorflow/lite/kernels/internal/reference/softmax.h"
+#include "tensorflow-lite/tensorflow/lite/kernels/internal/reference/softmax.h"
 #include <vector>
 #include <fstream>
 #include <sstream>
