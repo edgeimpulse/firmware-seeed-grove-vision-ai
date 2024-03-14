@@ -136,11 +136,9 @@ void ei_run_impulse(void)
         return;
     }
 
-    // print the predictions
-    ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
-              result.timing.dsp, result.timing.classification, result.timing.anomaly);
+    display_results(&result);
 
-    const ei_impulse_t impulse = ei_default_impulse;
+    auto& impulse = *(ei_default_impulse.impulse);
 
 #if EI_CLASSIFIER_OBJECT_DETECTION == 1
     bool bb_found = result.bounding_boxes[0].value > 0;
@@ -169,14 +167,6 @@ void ei_run_impulse(void)
             }
         }
         l_obj_det.emplace_front(obj_det);
-
-        ei_printf("    %s (", bb.label);
-        ei_printf_float(bb.value);
-        ei_printf(") [ x: %u, y: %u, width: %u, height: %u ]\n", bb.x, bb.y, bb.width, bb.height);
-    }
-    if (!bb_found)
-    {
-        ei_printf("    No objects found\n");
     }
     // count objects
     for (std::forward_list<object_detection_t>::iterator detection_it = l_obj_det.begin(); detection_it != l_obj_det.end(); ++detection_it)
@@ -197,17 +187,6 @@ void ei_run_impulse(void)
             l_obj_cnt.emplace_front(obj);
         }
     }
-
-#else
-    for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++)
-    {
-        ei_printf("    %s: %.5f\n", result.classification[ix].label,
-                  result.classification[ix].value);
-    }
-
-#if EI_CLASSIFIER_HAS_ANOMALY == 1
-    ei_printf("    anomaly score: %.3f\n", result.anomaly);
-#endif
 #endif
 
     if (debug_mode)
