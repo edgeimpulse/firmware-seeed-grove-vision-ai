@@ -71,6 +71,7 @@ const ei_learning_block_config_tflite_graph_t ei_learning_block_config_33 = {
     .output_data_tensor = 0,
     .output_labels_tensor = 1,
     .output_score_tensor = 2,
+    .threshold = 0.55,
     .quantized = 1,
     .compiled = 1,
     .graph_config = (void*)&ei_config_tflite_graph_33
@@ -101,11 +102,6 @@ const ei_model_performance_calibration_t ei_calibration = {
     0   /* Don't use flags */
 };
 
-const ei_object_detection_nms_config_t ei_object_detection_nms = {
-    0.0f, /* NMS confidence threshold */
-    0.2f  /* NMS IOU threshold */
-};
-
 const ei_impulse_t impulse_96_0 = {
     .project_id = 96,
     .project_owner = "Edge Impulse Profiling",
@@ -124,12 +120,7 @@ const ei_impulse_t impulse_96_0 = {
     .dsp_blocks_size = ei_dsp_blocks_size,
     .dsp_blocks = ei_dsp_blocks,
 
-    .object_detection = 1,
     .object_detection_count = 10,
-
-    .object_detection_threshold = 0.55,
-
-    .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_FOMO,
     .fomo_output_size = 12,
 
     .tflite_output_features_count = 288,
@@ -146,8 +137,7 @@ const ei_impulse_t impulse_96_0 = {
     .has_anomaly = EI_ANOMALY_TYPE_UNKNOWN,
     .label_count = 1,
     .calibration = ei_calibration,
-    .categories = ei_classifier_inferencing_categories,
-    .object_detection_nms = ei_object_detection_nms
+    .categories = ei_classifier_inferencing_categories
 };
 
 ei_impulse_handle_t impulse_handle_96_0 = ei_impulse_handle_t( &impulse_96_0 );
