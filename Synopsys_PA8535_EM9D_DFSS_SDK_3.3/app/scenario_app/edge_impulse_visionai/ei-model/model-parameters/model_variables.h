@@ -32,7 +32,7 @@
 const char* ei_classifier_inferencing_categories[] = { "face" };
 
 uint8_t ei_dsp_config_32_axes[] = { 0 };
-const uint32_t ei_dsp_config_32_axes_size = 1;
+const uint8_t ei_dsp_config_32_axes_size = 1;
 ei_dsp_config_image_t ei_dsp_config_32 = {
     32, // uint32_t blockId
     1, // int implementationVersion
@@ -40,7 +40,7 @@ ei_dsp_config_image_t ei_dsp_config_32 = {
     "RGB" // select channels
 };
 
-const size_t ei_dsp_blocks_size = 1;
+const uint8_t ei_dsp_blocks_size = 1;
 ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
     { // DSP block 32
         32,
@@ -77,9 +77,9 @@ const ei_learning_block_config_tflite_graph_t ei_learning_block_config_33 = {
     .graph_config = (void*)&ei_config_tflite_graph_33
 };
 
-const size_t ei_learning_blocks_size = 1;
+const uint8_t ei_learning_blocks_size = 1;
 const uint32_t ei_learning_block_33_inputs[1] = { 32 };
-const uint32_t ei_learning_block_33_inputs_size = 1;
+const uint8_t ei_learning_block_33_inputs_size = 1;
 const ei_learning_block_t ei_learning_blocks[ei_learning_blocks_size] = {
     {
         33,
@@ -106,6 +106,8 @@ const ei_impulse_t impulse_96_0 = {
     .project_id = 96,
     .project_owner = "Edge Impulse Profiling",
     .project_name = "Demo: Constrained Object Detection",
+    .impulse_id = 1,
+    .impulse_name = "",
     .deploy_version = 1,
 
     .nn_input_frame_size = 27648,
