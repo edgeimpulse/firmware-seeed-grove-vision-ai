@@ -131,7 +131,7 @@ void ei_run_impulse(void)
         return;
     }
 
-    display_results(&result);
+    display_results(&ei_default_impulse, &result);
 
     auto& impulse = *(ei_default_impulse.impulse);
 
