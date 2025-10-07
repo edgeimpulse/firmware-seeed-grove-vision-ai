@@ -133,13 +133,18 @@ const ei_postprocessing_block_t ei_postprocessing_blocks_54_1[ei_postprocessing_
     },
 };
 
+const uint8_t freeform_outputs_54_1_size = 0;
+
+uint32_t *freeform_outputs_54_1 = nullptr;
+
+
 const ei_impulse_t impulse_54_1 = {
     .project_id = 54,
     .project_owner = "Edge Impulse Profiling",
     .project_name = "Demo: Constrained Object Detection",
     .impulse_id = 1,
     .impulse_name = "Impulse #1",
-    .deploy_version = 20,
+    .deploy_version = 38,
 
     .nn_input_frame_size = 27648,
     .raw_sample_count = 9216,
@@ -160,6 +165,8 @@ const ei_impulse_t impulse_54_1 = {
     .postprocessing_blocks_size = ei_postprocessing_blocks_54_1_size,
     .postprocessing_blocks = ei_postprocessing_blocks_54_1,
 
+    .output_tensors_size = 1,
+
     .inferencing_engine = EI_CLASSIFIER_TFLITE,
 
     .sensor = EI_CLASSIFIER_SENSOR_CAMERA,
@@ -169,7 +176,9 @@ const ei_impulse_t impulse_54_1 = {
 
     .has_anomaly = EI_ANOMALY_TYPE_UNKNOWN,
     .label_count = 1,
-    .categories = ei_classifier_inferencing_categories_54_1
+    .categories = ei_classifier_inferencing_categories_54_1,
+    .freeform_outputs_size = freeform_outputs_54_1_size,
+    .freeform_outputs = freeform_outputs_54_1
 };
 
 ei_impulse_handle_t impulse_handle_54_1 = ei_impulse_handle_t( &impulse_54_1 );
