@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 #include "model_metadata.h"
-
 #include "tflite-model/tflite_learn_54_33_compiled.h"
 #include "edge-impulse-sdk/classifier/ei_model_types.h"
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
@@ -137,14 +136,13 @@ const uint8_t freeform_outputs_54_1_size = 0;
 
 uint32_t *freeform_outputs_54_1 = nullptr;
 
-
 const ei_impulse_t impulse_54_1 = {
     .project_id = 54,
     .project_owner = "Edge Impulse Profiling",
     .project_name = "Demo: Constrained Object Detection",
     .impulse_id = 1,
     .impulse_name = "Impulse #1",
-    .deploy_version = 38,
+    .deploy_version = 47,
 
     .nn_input_frame_size = 27648,
     .raw_sample_count = 9216,
@@ -177,14 +175,15 @@ const ei_impulse_t impulse_54_1 = {
     .has_anomaly = EI_ANOMALY_TYPE_UNKNOWN,
     .label_count = 1,
     .categories = ei_classifier_inferencing_categories_54_1,
+    .results_type = EI_CLASSIFIER_TYPE_OBJECT_DETECTION,
     .freeform_outputs_size = freeform_outputs_54_1_size,
     .freeform_outputs = freeform_outputs_54_1
 };
 
 ei_impulse_handle_t impulse_handle_54_1 = ei_impulse_handle_t( &impulse_54_1 );
+
 ei_impulse_handle_t& ei_default_impulse = impulse_handle_54_1;
 constexpr auto& ei_classifier_inferencing_categories = ei_classifier_inferencing_categories_54_1;
 const auto ei_dsp_blocks_size = ei_dsp_blocks_54_1_size;
 ei_model_dsp_t *ei_dsp_blocks = ei_dsp_blocks_54_1;
-
 #endif // _EI_CLASSIFIER_MODEL_VARIABLES_H_
