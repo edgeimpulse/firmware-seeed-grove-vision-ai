@@ -35,6 +35,7 @@
 #include "model-parameters/model_metadata.h"
 #if defined(EI_CLASSIFIER_SENSOR) && (EI_CLASSIFIER_SENSOR == EI_CLASSIFIER_SENSOR_CAMERA)
 #include "edge-impulse-sdk/classifier/ei_run_classifier.h"
+#include "edge-impulse-sdk/classifier/ei_print_results.h"
 #include "edge-impulse-sdk/dsp/image/image.hpp"
 #include "firmware-sdk/jpeg/encode_as_jpg.h"
 #include "firmware-sdk/ei_camera_interface.h"
@@ -148,7 +149,7 @@ void ei_run_impulse(void)
         return;
     }
 
-    display_results(&ei_default_impulse, &result);
+    ei_print_results(&ei_default_impulse, &result);
 
     auto& impulse = *(ei_default_impulse.impulse);
 
